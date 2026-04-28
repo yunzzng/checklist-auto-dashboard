@@ -172,19 +172,13 @@ export default function DashboardClient() {
       }
 
       setProgress(100);
-      // 1) 가능하면 새 창 document에 직접 렌더
-      // 2) 정책/브라우저 제한으로 실패하면 Blob URL로 대체 렌더
-      try {
-        w.document.open();
-        w.document.write(data.html);
-        w.document.close();
-      } catch {
-        const blob = new Blob([data.html], { type: "text/html;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        w.location.href = url;
-        // 메모리 해제(페이지 이동 후 일정 시간 뒤)
-        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      }
+      // 브라우저/정책에 따라 새 창 document 접근이 막히면 "빈 화면"이 되곤 해서,
+      // 결과는 가장 안정적인 방식(Blob URL 이동)으로 표시합니다.
+      const blob = new Blob([data.html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      w.location.replace(url);
+      // 메모리 해제(충분히 여유 있게)
+      window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60_000);
 
       const used = data.context?.used;
       setLastInfo(
