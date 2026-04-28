@@ -176,7 +176,21 @@ export default function DashboardClient() {
       // 결과는 가장 안정적인 방식(Blob URL 이동)으로 표시합니다.
       const blob = new Blob([data.html], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);
-      w.location.replace(url);
+      // 일부 환경에서 replace가 무시되는 사례가 있어, assign + 지연 재시도까지 추가
+      try {
+        w.location.assign(url);
+      } catch {
+        // ignore
+      }
+      window.setTimeout(() => {
+        try {
+          if (!w.closed && (w.location.href === "about:blank" || w.location.href === "about:srcdoc")) {
+            w.location.href = url;
+          }
+        } catch {
+          // ignore
+        }
+      }, 200);
       // 메모리 해제(충분히 여유 있게)
       window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60_000);
 
