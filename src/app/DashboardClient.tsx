@@ -17,6 +17,7 @@ type ApiOk = {
     figmaNodeName?: string;
     figmaNodeDescription?: string;
     figmaImageUrl?: string | null;
+    figmaError?: string;
     used: { figma: boolean; llm: boolean };
   };
 };

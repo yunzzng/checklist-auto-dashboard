@@ -15,6 +15,7 @@ export function checklistRowsToHtml(params: {
     figmaNodeName?: string;
     figmaNodeDescription?: string;
     figmaImageUrl?: string | null;
+    figmaError?: string;
   };
 }): string {
   const { title, figmaUrl, rows, context } = params;
@@ -60,6 +61,7 @@ export function checklistRowsToHtml(params: {
     context?.figmaNodeDescription
       ? `<div><b>Description</b>: ${escape(context.figmaNodeDescription)}</div>`
       : "",
+    context?.figmaError ? `<div><b>Figma 상태</b>: ${escape(context.figmaError)}</div>` : "",
     `</div>`,
   ]
     .filter(Boolean)

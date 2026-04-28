@@ -20,6 +20,7 @@ type GenerateChecklistResponse =
         figmaNodeName?: string;
         figmaNodeDescription?: string;
         figmaImageUrl?: string | null;
+        figmaError?: string;
         used: { figma: boolean; llm: boolean };
       };
     }
@@ -169,8 +170,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   let figmaNodeDescription: string | undefined;
   let figmaImageUrl: string | null | undefined;
   let usedFigma = false;
+  let figmaError: string | undefined;
 
-  if (parsed?.kind === "design" && parsed.nodeId && figmaToken) {
+  if (parsed?.kind !== "design") {
+    figmaError = parsed ? `현재는 design 링크만 지원합니다. (kind=${parsed.kind})` : "Figma 링크를 해석하지 못했습니다.";
+  } else if (!parsed.nodeId) {
+    figmaError = "node-id가 없는 링크라 노드 설명/스크린샷을 가져올 수 없습니다. (node-id 포함 링크를 사용하세요)";
+  } else if (!figmaToken) {
+    figmaError = "FIGMA_TOKEN(또는 입력 토큰)이 없어 노드 설명/스크린샷을 가져올 수 없습니다.";
+  } else {
     try {
       const [summary, imageUrl] = await Promise.all([
         fetchFigmaNodeSummary({
@@ -188,8 +196,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       figmaNodeDescription = summary.description;
       figmaImageUrl = imageUrl;
       usedFigma = true;
-    } catch {
-      // ignore
+    } catch (e) {
+      figmaError = e instanceof Error ? e.message : String(e);
     }
   }
 
@@ -223,7 +231,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     title,
     figmaUrl,
     rows,
-    context: { figmaNodeName, figmaNodeDescription, figmaImageUrl },
+    context: { figmaNodeName, figmaNodeDescription, figmaImageUrl, figmaError },
   });
 
   res.status(200).json({
@@ -234,6 +242,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       figmaNodeName,
       figmaNodeDescription,
       figmaImageUrl,
+      figmaError,
       used: { figma: usedFigma, llm: usedLlm },
     },
   });
