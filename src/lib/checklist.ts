@@ -92,9 +92,7 @@ export function checklistRowsToHtml(params: {
       body {
         margin: 0;
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-        background: radial-gradient(1200px 800px at 10% 10%, rgba(124,58,237,0.25), transparent 55%),
-                    radial-gradient(1200px 800px at 90% 10%, rgba(34,197,94,0.18), transparent 55%),
-                    var(--bg);
+        background: linear-gradient(to bottom, #000000, #020617, #000000);
         color: var(--text);
       }
       .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 18px 60px; }
@@ -224,7 +222,6 @@ export function checklistRowsToHtml(params: {
         <span class="pill">FAIL: <b id="countFail">0</b></span>
         <span class="pill">미선택: <b id="countNone">0</b></span>
       </div>
-      <div class="hint">팁: 이 창은 단독 HTML이라 공유/저장하기 쉽습니다.</div>
     </div>
     <script>
       const storageKey = "checklist_auto:results:" + location.href;
