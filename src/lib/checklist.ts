@@ -68,9 +68,13 @@ export function checklistRowsToHtml(params: {
     .join("");
 
   const screenshot = context?.figmaImageUrl
-    ? `<div class="shot"><div class="shotTitle">Screen</div><img alt="Figma screenshot" src="${escape(
-        context.figmaImageUrl
-      )}" /></div>`
+    ? `<div class="shot">
+        <div class="shotTitle">Screen</div>
+        <a href="${escape(context.figmaImageUrl)}" target="_blank" rel="noreferrer noopener">
+          <img alt="Figma screenshot" src="${escape(context.figmaImageUrl)}" />
+        </a>
+        <div class="shotHint">이미지 클릭 시 원본 크기로 새 탭에서 열립니다.</div>
+      </div>`
     : "";
 
   return `<!doctype html>
@@ -132,7 +136,16 @@ export function checklistRowsToHtml(params: {
         border-radius: 14px;
       }
       .shotTitle { font-weight: 600; margin-bottom: 10px; }
-      .shot img { width: 100%; height: auto; border-radius: 10px; border: 1px solid rgba(255,255,255,0.10); }
+      .shot img {
+        width: 100%;
+        height: auto;
+        max-height: 420px;
+        object-fit: contain;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(0,0,0,0.22);
+      }
+      .shotHint { margin-top: 10px; color: rgba(255,255,255,0.62); font-size: 12px; }
       .tableWrap {
         margin-top: 18px;
         border: 1px solid var(--line);

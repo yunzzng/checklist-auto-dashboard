@@ -138,6 +138,65 @@ function fallbackRows(req: GenerateChecklistRequest): ChecklistRow[] {
   ];
 }
 
+function rowsFromNumberedDescription(params: {
+  description: string;
+  pathHint: string;
+}): ChecklistRow[] {
+  const { description, pathHint } = params;
+  const raw = description.replaceAll("\r\n", "\n").trim();
+  if (!raw) return [];
+
+  // 1) ... / 1. ... / 1- ... / 1) ... 형태를 넓게 지원
+  const lines = raw.split("\n");
+  const items: string[] = [];
+  let current = "";
+
+  const isStart = (s: string) => /^\s*(\d+)[\.\)\-]\s+/.test(s) || /^\s*[\-\*]\s+/.test(s);
+  const stripMarker = (s: string) => s.replace(/^\s*((\d+)[\.\)\-]|[\-\*])\s+/, "");
+
+  for (const line of lines) {
+    const l = line.trim();
+    if (!l) continue;
+    if (isStart(l)) {
+      if (current) items.push(current.trim());
+      current = stripMarker(l);
+    } else {
+      current = current ? `${current}\n${l}` : l;
+    }
+  }
+  if (current) items.push(current.trim());
+
+  // 너무 긴 설명은 앞부분만 사용
+  const trimmed = items.slice(0, 30);
+
+  const mk = (text: string): ChecklistRow[] => {
+    const t = text.trim();
+    if (!t) return [];
+    return [
+      {
+        domain: "웹",
+        path: pathHint,
+        precondition: "해당 화면/기능 접근 가능",
+        step: `기능/시나리오 수행: ${t}`,
+        checkitem: "요구사항/흐름대로 동작하는지",
+        result: "기획(Description)에 적힌 내용대로 동작한다",
+      },
+      {
+        domain: "웹",
+        path: pathHint,
+        precondition: "필수 입력값/조건이 있는 경우",
+        step: `조건 누락/잘못된 값으로 수행: ${t}`,
+        checkitem: "유효성/오류 메시지/가이드",
+        result: "사용자가 이해할 수 있는 오류/가이드가 표시된다",
+      },
+    ];
+  };
+
+  const rows = trimmed.flatMap((t) => mk(t));
+  // 최소 10개 정도는 나오도록 제한(짧을 때)
+  return rows.length ? rows.slice(0, 40) : [];
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse<GenerateChecklistResponse>) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "POST만 지원합니다." });
@@ -224,7 +283,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
   }
 
-  if (!rows) rows = fallbackRows(body);
+  if (!rows) {
+    const fromDesc = figmaNodeDescription
+      ? rowsFromNumberedDescription({
+          description: figmaNodeDescription,
+          pathHint: body.domainHint?.trim() ? `/${body.domainHint.trim()}` : "/(unknown)",
+        })
+      : [];
+    rows = fromDesc.length ? fromDesc : fallbackRows(body);
+  }
 
   const title = "QA 체크리스트 (자동 생성)";
   const html = checklistRowsToHtml({
