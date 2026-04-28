@@ -115,7 +115,7 @@ export function checklistRowsToHtml(params: {
         background: linear-gradient(to bottom, #000000, #020617, #000000);
         color: var(--text);
       }
-      .wrap { max-width: 1200px; margin: 0; padding: 50px; }
+      .wrap { margin: 0; padding: 50px 100px; }
       .top {
         display: flex; gap: 12px; align-items: baseline; justify-content: space-between;
         flex-wrap: wrap;
@@ -181,15 +181,15 @@ export function checklistRowsToHtml(params: {
       }
       .chartRow {
         display: grid;
-        grid-template-columns: 168px 1fr;
+        grid-template-columns: 300px 1fr;
         gap: 14px;
         align-items: center;
         flex: 1;
         min-height: 0;
       }
       .donut {
-        width: 168px;
-        height: 168px;
+        width: 300px;
+        height: 300px;
         border-radius: 999px;
         background: conic-gradient(
           rgba(34,197,94,0.90) 0deg,
@@ -205,12 +205,12 @@ export function checklistRowsToHtml(params: {
       .donut::after {
         content: "";
         position: absolute;
-        inset: 16px;
+        inset: 26px;
         border-radius: 999px;
         background: rgba(11,16,32,0.85);
         border: 1px solid rgba(255,255,255,0.10);
       }
-      .legend { display: grid; gap: 8px; }
+      .legend { display: grid; gap: 10px; }
       .legendItem { display: flex; align-items: baseline; gap: 8px; color: rgba(255,255,255,0.88); }
       .legendItem b { margin-left: 4px; }
       .legendHint { margin-top: 6px; font-size: 12px; }
@@ -279,8 +279,6 @@ export function checklistRowsToHtml(params: {
       }
       tr.pass td { background: rgba(34,197,94,0.06); }
       tr.fail td { background: rgba(244,63,94,0.06); }
-      .summary { margin-top: 12px; color: rgba(255,255,255,0.72); font-size: 12px; display:flex; gap:10px; flex-wrap:wrap; }
-      .pill { border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); padding: 6px 10px; border-radius: 999px; }
       tr:hover td { background: rgba(255,255,255,0.04); }
       .hint { margin-top: 12px; color: rgba(255,255,255,0.62); font-size: 12px; }
       @media print {
@@ -332,11 +330,6 @@ export function checklistRowsToHtml(params: {
           </tbody>
         </table>
       </div>
-      <div class="summary" id="summary">
-        <span class="pill">PASS: <b id="countPass">0</b></span>
-        <span class="pill">FAIL: <b id="countFail">0</b></span>
-        <span class="pill">미선택: <b id="countNone">0</b></span>
-      </div>
     </div>
     <script>
       const storageKey = "checklist_auto:results:" + location.href;
@@ -356,9 +349,6 @@ export function checklistRowsToHtml(params: {
           else if (v === "fail") fail++;
           else none++;
         }
-        document.getElementById("countPass").textContent = String(pass);
-        document.getElementById("countFail").textContent = String(fail);
-        document.getElementById("countNone").textContent = String(none);
 
         const total = pass + fail + none;
         const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
