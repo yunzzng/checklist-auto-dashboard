@@ -101,11 +101,21 @@ export default function DashboardClient() {
       // ignore
     }
 
-    const w = window.open(`/popup?rid=${encodeURIComponent(rid)}`, "_blank", "noopener");
-    if (!w) {
+    // 일부 브라우저는 window.open + noopener 조합에서 "탭은 열리지만 반환값은 null"이 될 수 있어
+    // (차단으로 오인/후속 처리 불가), 가장 안정적인 방식인 a[target=_blank] 클릭으로 새 탭을 엽니다.
+    try {
+      const a = document.createElement("a");
+      a.href = `/popup?rid=${encodeURIComponent(rid)}`;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
       setBusy(false);
       setProgress(0);
-      setError("새 창이 차단되었습니다. 팝업 차단을 해제하고 다시 시도해주세요.");
+      setError("새 창을 열지 못했습니다. 팝업 차단/브라우저 정책을 확인해주세요.");
       return;
     }
 
@@ -147,14 +157,8 @@ export default function DashboardClient() {
       try {
         localStorage.setItem(storageKey, JSON.stringify({ status: "ready", html: data.html }));
       } catch {
-        // localStorage 실패 시에는 최후 수단으로 Blob URL로 이동
-        const blob = new Blob([data.html], { type: "text/html;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        try {
-          w.location.assign(url);
-        } catch {
-          // ignore
-        }
+        // localStorage가 막히면 popup 탭에서 payload를 못 받으므로 에러로 유도
+        throw new Error("브라우저 저장소(localStorage) 접근이 차단되어 결과를 전달할 수 없습니다.");
       }
 
       const used = data.context?.used;
