@@ -28,9 +28,8 @@ export function checklistRowsToHtml(params: {
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
 
-  const thRow = (cells: string[]) => `<tr>${cells.map((c) => `<th>${escape(c)}</th>`).join("")}</tr>`;
-
   const tdEsc = (v: string) => `<td>${escape(v)}</td>`;
+  const tdEscClass = (v: string, cls: string) => `<td class="${escape(cls)}">${escape(v)}</td>`;
   const tdRaw = (html: string) => `<td>${html}</td>`;
 
   const rowsHtml = rows
@@ -42,6 +41,7 @@ export function checklistRowsToHtml(params: {
   <option value="fail">FAIL</option>
 </select>`;
       return `<tr data-row-id="${escape(id)}">${[
+        tdEscClass(String(idx + 1), "no"),
         tdEsc(r.domain ?? ""),
         tdEsc(r.path ?? ""),
         tdEsc(r.precondition ?? ""),
@@ -153,7 +153,15 @@ export function checklistRowsToHtml(params: {
         border-radius: 14px;
         overflow: hidden;
       }
-      table { width: 100%; border-collapse: collapse; }
+      table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      col.no { width: 56px; }
+      col.domain { width: 88px; }
+      col.path { width: 120px; }
+      col.precondition { width: 160px; }
+      col.step { width: 280px; }
+      col.checkitem { width: 220px; }
+      col.expected { width: 260px; }
+      col.actual { width: 150px; }
       th, td {
         border-bottom: 1px solid rgba(255,255,255,0.10);
         border-right: 1px solid rgba(255,255,255,0.10);
@@ -162,6 +170,7 @@ export function checklistRowsToHtml(params: {
         font-size: 13px;
         line-height: 1.4;
         white-space: pre-wrap;
+        word-break: break-word;
       }
       th:last-child, td:last-child { border-right: none; }
       th {
@@ -175,6 +184,7 @@ export function checklistRowsToHtml(params: {
         text-transform: uppercase;
         color: rgba(255,255,255,0.78);
       }
+      th.no, td.no { text-align: right; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.75); }
       .select {
         width: 100%;
         max-width: 140px;
@@ -222,8 +232,27 @@ export function checklistRowsToHtml(params: {
       ${screenshot}
       <div class="tableWrap">
         <table>
+          <colgroup>
+            <col class="no" />
+            <col class="domain" />
+            <col class="path" />
+            <col class="precondition" />
+            <col class="step" />
+            <col class="checkitem" />
+            <col class="expected" />
+            <col class="actual" />
+          </colgroup>
           <thead>
-            ${thRow(["도메인", "경로", "사전조건", "단계", "체크 항목", "기대 결과", "테스트 결과"])}
+            <tr>
+              <th class="no">No</th>
+              <th>도메인</th>
+              <th>경로</th>
+              <th>사전조건</th>
+              <th>단계</th>
+              <th>체크 항목</th>
+              <th>기대 결과</th>
+              <th>테스트 결과</th>
+            </tr>
           </thead>
           <tbody>
             ${rowsHtml}
