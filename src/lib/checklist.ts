@@ -27,31 +27,29 @@ export function checklistRowsToHtml(params: {
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
 
-  const header = [
-    "domain",
-    "path",
-    "precondition",
-    "step",
-    "checkitem",
-    "result",
-  ] as const;
+  const thRow = (cells: string[]) => `<tr>${cells.map((c) => `<th>${escape(c)}</th>`).join("")}</tr>`;
 
-  const tr = (cells: string[], th = false) =>
-    `<tr>${cells
-      .map((c) => (th ? `<th>${escape(c)}</th>` : `<td>${escape(c)}</td>`))
-      .join("")}</tr>`;
+  const tdEsc = (v: string) => `<td>${escape(v)}</td>`;
+  const tdRaw = (html: string) => `<td>${html}</td>`;
 
   const rowsHtml = rows
-    .map((r) =>
-      tr([
-        r.domain ?? "",
-        r.path ?? "",
-        r.precondition ?? "",
-        r.step ?? "",
-        r.checkitem ?? "",
-        r.result ?? "",
-      ])
-    )
+    .map((r, idx) => {
+      const id = `row_${idx}`;
+      const select = `<select class="select" data-row-id="${escape(id)}">
+  <option value="">미선택</option>
+  <option value="pass">PASS</option>
+  <option value="fail">FAIL</option>
+</select>`;
+      return `<tr data-row-id="${escape(id)}">${[
+        tdEsc(r.domain ?? ""),
+        tdEsc(r.path ?? ""),
+        tdEsc(r.precondition ?? ""),
+        tdEsc(r.step ?? ""),
+        tdEsc(r.checkitem ?? ""),
+        tdEsc(r.result ?? ""),
+        tdRaw(select),
+      ].join("")}</tr>`;
+    })
     .join("");
 
   const metaBits = [
@@ -164,6 +162,19 @@ export function checklistRowsToHtml(params: {
         text-transform: uppercase;
         color: rgba(255,255,255,0.78);
       }
+      .select {
+        width: 100%;
+        max-width: 140px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(0,0,0,0.22);
+        color: rgba(255,255,255,0.92);
+        padding: 8px 10px;
+        border-radius: 10px;
+        outline: none;
+      }
+      .select:focus { border-color: rgba(124,58,237,0.65); }
+      .summary { margin-top: 12px; color: rgba(255,255,255,0.72); font-size: 12px; display:flex; gap:10px; flex-wrap:wrap; }
+      .pill { border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); padding: 6px 10px; border-radius: 999px; }
       tr:hover td { background: rgba(255,255,255,0.04); }
       .hint { margin-top: 12px; color: rgba(255,255,255,0.62); font-size: 12px; }
       @media print {
@@ -189,16 +200,59 @@ export function checklistRowsToHtml(params: {
       <div class="tableWrap">
         <table>
           <thead>
-            ${tr(header.slice() as unknown as string[], true)}
+            ${thRow(["도메인", "경로", "사전조건", "단계", "체크 항목", "기대 결과", "테스트 결과"])}
           </thead>
           <tbody>
             ${rowsHtml}
           </tbody>
         </table>
       </div>
+      <div class="summary" id="summary">
+        <span class="pill">PASS: <b id="countPass">0</b></span>
+        <span class="pill">FAIL: <b id="countFail">0</b></span>
+        <span class="pill">미선택: <b id="countNone">0</b></span>
+      </div>
       <div class="hint">팁: 이 창은 단독 HTML이라 공유/저장하기 쉽습니다.</div>
     </div>
     <script>
+      const storageKey = "checklist_auto:results:" + location.href;
+
+      function readState() {
+        try { return JSON.parse(localStorage.getItem(storageKey) || "{}"); } catch { return {}; }
+      }
+      function writeState(state) {
+        try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
+      }
+      function updateSummary() {
+        const selects = Array.from(document.querySelectorAll("select.select"));
+        let pass = 0, fail = 0, none = 0;
+        for (const s of selects) {
+          const v = s.value || "";
+          if (v === "pass") pass++;
+          else if (v === "fail") fail++;
+          else none++;
+        }
+        document.getElementById("countPass").textContent = String(pass);
+        document.getElementById("countFail").textContent = String(fail);
+        document.getElementById("countNone").textContent = String(none);
+      }
+
+      (function initResults() {
+        const state = readState();
+        const selects = Array.from(document.querySelectorAll("select.select"));
+        for (const s of selects) {
+          const id = s.getAttribute("data-row-id");
+          if (id && typeof state[id] === "string") s.value = state[id];
+          s.addEventListener("change", () => {
+            const next = readState();
+            if (id) next[id] = s.value || "";
+            writeState(next);
+            updateSummary();
+          });
+        }
+        updateSummary();
+      })();
+
       function downloadHtml() {
         const blob = new Blob([document.documentElement.outerHTML], { type: "text/html;charset=utf-8" });
         const a = document.createElement("a");
