@@ -469,9 +469,7 @@ export function checklistRowsToHtml(params: {
         else if (v === "fixed") selectEl.classList.add("fixed");
         else selectEl.classList.add("nt");
 
-        const rowId = selectEl.getAttribute("data-row-id");
-        if (!rowId) return;
-        const tr = document.querySelector('tr[data-row-id=\"' + CSS.escape(rowId) + '\"]');
+        const tr = selectEl.closest("tr");
         if (!tr) return;
         tr.classList.remove("pass", "fail", "nt", "na", "block", "fixed");
         if (v === "pass") tr.classList.add("pass");
@@ -485,13 +483,23 @@ export function checklistRowsToHtml(params: {
       (function initResults() {
         const state = readState();
         const selects = Array.from(document.querySelectorAll("select.select"));
+        window.__selectByRowId = {};
         for (const s of selects) {
           const id = s.getAttribute("data-row-id");
-          if (id && typeof state[id] === "string") s.value = state[id];
+          if (id) window.__selectByRowId[id] = s;
+          const saved = id && typeof state[id] === "string" ? state[id] : "";
+          s.value = saved || "nt";
           applyResultStyles(s);
           s.addEventListener("change", () => {
             const next = readState();
-            if (id) next[id] = s.value || "";
+            if (id) next[id] = s.value || "nt";
+            writeState(next);
+            applyResultStyles(s);
+            updateSummary();
+          });
+          s.addEventListener("input", () => {
+            const next = readState();
+            if (id) next[id] = s.value || "nt";
             writeState(next);
             applyResultStyles(s);
             updateSummary();
@@ -556,7 +564,8 @@ export function checklistRowsToHtml(params: {
       })();
 
       function getResultValueByRowId(rowId) {
-        const sel = document.querySelector('select.select[data-row-id=\"' + CSS.escape(rowId) + '\"]');
+        const map = window.__selectByRowId || {};
+        const sel = map[rowId];
         return sel ? (sel.value || "nt") : "nt";
       }
 
