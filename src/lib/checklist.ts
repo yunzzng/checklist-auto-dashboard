@@ -152,7 +152,7 @@ export function checklistRowsToHtml(params: {
       a { color: rgba(147,197,253,0.95); text-decoration: none; }
       a:hover { text-decoration: underline; }
       .shot {
-        margin-top: 14px;
+        margin-top: 0;
         padding: 14px;
         border: 1px solid var(--line);
         background: var(--panel);
@@ -188,6 +188,7 @@ export function checklistRowsToHtml(params: {
         align-items: stretch;
         justify-content: center;
         text-align: left;
+        position: relative;
       }
       .chartRow {
         display: grid;
@@ -211,13 +212,14 @@ export function checklistRowsToHtml(params: {
         );
         position: relative;
         border: 1px solid rgba(255,255,255,0.14);
+        cursor: help;
       }
       .legend { display: grid; gap: 10px; justify-items: start; text-align: left; }
       .legendItem { display: flex; align-items: baseline; gap: 8px; color: rgba(255,255,255,0.88); }
       .legendItem b { margin-left: 4px; }
       .legendHint { margin-top: 6px; font-size: 12px; }
       .tooltip {
-        position: absolute;
+        position: fixed;
         display: none;
         padding: 10px 12px;
         border-radius: 12px;
@@ -337,9 +339,9 @@ export function checklistRowsToHtml(params: {
         <h1>${escape(title)}</h1>
         <div class="btns">
           <button class="primary" onclick="window.print()">인쇄/저장(PDF)</button>
-          <button onclick="downloadHtml()">HTML 다운로드</button>
-          <button onclick="downloadQaReport()">QA결과 리포트 생성</button>
-          <button onclick="downloadRegressionTc()">리그레션 TC 생성</button>
+          <button onclick="window.downloadHtml && window.downloadHtml()">HTML 다운로드</button>
+          <button onclick="window.openQaReport && window.openQaReport()">QA결과 리포트 생성</button>
+          <button onclick="window.downloadRegressionTc && window.downloadRegressionTc()">리그레션 TC 생성</button>
         </div>
       </div>
       ${metaBits}
@@ -571,7 +573,7 @@ export function checklistRowsToHtml(params: {
         }, 0);
       }
 
-      function downloadQaReport() {
+      function openQaReport() {
         const rows = Array.from(document.querySelectorAll("tbody tr[data-row-id]"));
         const lines = rows.map((tr) => {
           const id = tr.getAttribute("data-row-id");
@@ -588,11 +590,11 @@ export function checklistRowsToHtml(params: {
         });
 
         const slices = window.__slices || [];
-        const summaryHtml = slices
+        const summaryItems = slices
           .map((s) => "<li><b>" + s.label + "</b>: " + s.pct + "% (" + s.count + ")</li>")
           .join("");
 
-        const tableHtml = lines
+        const detailsRows = lines
           .map((r) => {
             return (
               "<tr>" +
@@ -619,30 +621,79 @@ export function checklistRowsToHtml(params: {
           })
           .join("");
 
-        const html =
+        const initialHtml =
           "<!doctype html><meta charset=\"utf-8\"/><title>QA 결과 리포트</title>" +
           "<style>" +
           "body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;margin:24px;}" +
           "h1{margin:0 0 8px 0;}" +
           ".muted{color:#6b7280;}" +
+          ".card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;}" +
+          "label{display:block;font-size:12px;color:#374151;margin-top:10px;}" +
+          "input,textarea{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px;font-size:12px;}" +
+          "textarea{min-height:90px;}" +
+          ".row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}" +
+          ".btns{display:flex;gap:10px;margin-top:14px;}" +
+          "button{padding:10px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#111827;color:white;cursor:pointer;font-size:12px;}" +
+          "button.secondary{background:white;color:#111827;}" +
           "table{width:100%;border-collapse:collapse;margin-top:12px;}" +
           "th,td{border:1px solid #e5e7eb;padding:8px;vertical-align:top;font-size:12px;}" +
           "th{background:#f9fafb;text-align:left;}" +
+          "@media print{.noPrint{display:none;} body{margin:0;}}" +
           "</style>" +
           "<h1>QA 결과 리포트</h1>" +
           "<div class=\"muted\">" +
           new Date().toLocaleString() +
           "</div>" +
-          "<h3>요약</h3>" +
-          "<ul>" +
-          summaryHtml +
-          "</ul>" +
-          "<h3>상세</h3>" +
-          "<table><thead><tr><th>No</th><th>도메인</th><th>경로</th><th>결과</th><th>체크 항목</th><th>기대 결과</th></tr></thead><tbody>" +
-          tableHtml +
-          "</tbody></table>";
+          "<div class=\"card noPrint\" style=\"margin-top:14px;\">" +
+          "<div class=\"muted\">담당자/기간 등 정보를 입력한 뒤, 완료를 누르면 아래에 리포트가 생성됩니다. 생성 후에는 상단 브라우저의 인쇄 기능 또는 페이지 내 버튼으로 PDF 저장하세요.</div>" +
+          "<div class=\"row\">" +
+          "<div><label>담당자</label><input id=\"r_owner\" placeholder=\"예: 홍길동\"/></div>" +
+          "<div><label>테스트 기간</label><input id=\"r_period\" placeholder=\"예: 2026-04-01 ~ 2026-04-29\"/></div>" +
+          "</div>" +
+          "<div class=\"row\">" +
+          "<div><label>버전/빌드</label><input id=\"r_build\" placeholder=\"예: v1.2.3 (build 456)\"/></div>" +
+          "<div><label>환경</label><input id=\"r_env\" placeholder=\"예: Chrome 126 / macOS\"/></div>" +
+          "</div>" +
+          "<label>비고</label><textarea id=\"r_note\" placeholder=\"추가 이슈/리스크/특이사항\"></textarea>" +
+          "<div class=\"btns\">" +
+          "<button class=\"secondary\" onclick=\"window.print()\">인쇄/저장(PDF)</button>" +
+          "<button onclick=\"window.__makeReport && window.__makeReport()\">완료(리포트 생성)</button>" +
+          "</div>" +
+          "</div>" +
+          "<div id=\"report\"></div>" +
+          "<script>" +
+          "window.__data = { summaryItems: " +
+          JSON.stringify(summaryItems) +
+          ", detailsRows: " +
+          JSON.stringify(detailsRows) +
+          " };" +
+          "window.__makeReport = function(){ " +
+          "var owner=document.getElementById('r_owner').value||'';" +
+          "var period=document.getElementById('r_period').value||'';" +
+          "var build=document.getElementById('r_build').value||'';" +
+          "var env=document.getElementById('r_env').value||'';" +
+          "var note=document.getElementById('r_note').value||'';" +
+          "var html='';" +
+          "html += '<h3>정보</h3><table><tbody>';" +
+          "html += '<tr><th>담당자</th><td>'+owner+'</td><th>기간</th><td>'+period+'</td></tr>';" +
+          "html += '<tr><th>버전/빌드</th><td>'+build+'</td><th>환경</th><td>'+env+'</td></tr>';" +
+          "html += '<tr><th>비고</th><td colspan=\"3\">'+note.replace(/\\n/g,'<br/>')+'</td></tr>';" +
+          "html += '</tbody></table>';" +
+          "html += '<h3>요약</h3><ul>'+window.__data.summaryItems+'</ul>';" +
+          "html += '<h3>상세</h3><table><thead><tr><th>No</th><th>도메인</th><th>경로</th><th>결과</th><th>체크 항목</th><th>기대 결과</th></tr></thead><tbody>'+window.__data.detailsRows+'</tbody></table>';" +
+          "document.getElementById('report').innerHTML = html;" +
+          "};" +
+          "</script>";
 
-        downloadTextFile("qa-report.html", html, "text/html;charset=utf-8");
+        // Blob URL로 새 탭에 열기
+        const blob = new Blob([initialHtml], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
 
       function downloadRegressionTc() {
@@ -682,6 +733,11 @@ export function checklistRowsToHtml(params: {
           a.remove();
         }, 0);
       }
+
+      // onclick attribute에서 안정적으로 접근하도록 window에 바인딩
+      window.downloadHtml = downloadHtml;
+      window.openQaReport = openQaReport;
+      window.downloadRegressionTc = downloadRegressionTc;
     </script>
   </body>
 </html>`;
