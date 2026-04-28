@@ -86,6 +86,7 @@ export function checklistRowsToHtml(params: {
       <div class="shotTitle">테스트 결과 요약</div>
       <div class="chartRow">
         <div class="donut" id="donut" aria-label="테스트 결과 비율"></div>
+        <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
         <div class="legend">
           <div class="legendItem"><span class="swatch pass"></span> PASS <b id="pctPass">0%</b> <span class="muted">(<span id="cntPass">0</span>)</span></div>
           <div class="legendItem"><span class="swatch fail"></span> FAIL <b id="pctFail">0%</b> <span class="muted">(<span id="cntFail">0</span>)</span></div>
@@ -184,9 +185,9 @@ export function checklistRowsToHtml(params: {
         height: 100%;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
         justify-content: center;
-        text-align: center;
+        text-align: left;
       }
       .chartRow {
         display: grid;
@@ -211,18 +212,26 @@ export function checklistRowsToHtml(params: {
         position: relative;
         border: 1px solid rgba(255,255,255,0.14);
       }
-      .donut::after {
-        content: "";
-        position: absolute;
-        inset: 26px;
-        border-radius: 999px;
-        background: rgba(11,16,32,0.85);
-        border: 1px solid rgba(255,255,255,0.10);
-      }
       .legend { display: grid; gap: 10px; justify-items: start; text-align: left; }
       .legendItem { display: flex; align-items: baseline; gap: 8px; color: rgba(255,255,255,0.88); }
       .legendItem b { margin-left: 4px; }
       .legendHint { margin-top: 6px; font-size: 12px; }
+      .tooltip {
+        position: absolute;
+        display: none;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(0,0,0,0.72);
+        border: 1px solid rgba(255,255,255,0.16);
+        color: rgba(255,255,255,0.92);
+        font-size: 12px;
+        line-height: 1.35;
+        pointer-events: none;
+        backdrop-filter: blur(10px);
+        z-index: 3;
+        white-space: nowrap;
+      }
+      .tooltip b { font-size: 12px; }
       .swatch { width: 10px; height: 10px; border-radius: 3px; display:inline-block; }
       .swatch.pass { background: rgba(34,197,94,0.9); }
       .swatch.fail { background: rgba(244,63,94,0.9); }
@@ -329,6 +338,8 @@ export function checklistRowsToHtml(params: {
         <div class="btns">
           <button class="primary" onclick="window.print()">인쇄/저장(PDF)</button>
           <button onclick="downloadHtml()">HTML 다운로드</button>
+          <button onclick="downloadQaReport()">QA결과 리포트 생성</button>
+          <button onclick="downloadRegressionTc()">리그레션 TC 생성</button>
         </div>
       </div>
       ${metaBits}
@@ -434,6 +445,16 @@ export function checklistRowsToHtml(params: {
             "rgba(167,139,250,0.95) " + a5 + "deg " + a6 + "deg" +
             ")";
         }
+
+        // hover tooltip용 구간 저장 (0deg = 12시 방향이 아니라 3시 방향이므로 보정 필요)
+        window.__slices = [
+          { key: "pass", label: "PASS", pct: pPass, count: pass, start: a0, end: a1 },
+          { key: "fail", label: "FAIL", pct: pFail, count: fail, start: a1, end: a2 },
+          { key: "nt", label: "N/T", pct: pNt, count: nt, start: a2, end: a3 },
+          { key: "na", label: "N/A", pct: pNa, count: na, start: a3, end: a4 },
+          { key: "block", label: "BLOCK", pct: pBlock, count: block, start: a4, end: a5 },
+          { key: "fixed", label: "FIXED", pct: pFixed, count: fixed, start: a5, end: a6 },
+        ];
       }
 
       function applyResultStyles(selectEl) {
@@ -476,6 +497,178 @@ export function checklistRowsToHtml(params: {
         }
         updateSummary();
       })();
+
+      (function initChartHover() {
+        const donut = document.getElementById("donut");
+        const tip = document.getElementById("tooltip");
+        if (!donut || !tip) return;
+
+        const pickSlice = (deg) => {
+          const slices = window.__slices || [];
+          for (const s of slices) {
+            if (deg >= s.start && deg < s.end) return s;
+          }
+          return null;
+        };
+
+        const onMove = (e) => {
+          const rect = donut.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const dx = e.clientX - cx;
+          const dy = e.clientY - cy;
+          const r = Math.sqrt(dx * dx + dy * dy);
+          if (r < 4) return;
+
+          // Math.atan2는 0deg를 +x(3시)로 반환. conic-gradient도 3시가 시작점.
+          let deg = (Math.atan2(dy, dx) * 180) / Math.PI;
+          if (deg < 0) deg += 360;
+
+          const slice = pickSlice(deg);
+          if (!slice) {
+            tip.style.display = "none";
+            return;
+          }
+
+          tip.innerHTML =
+            "<b>" +
+            String(slice.label) +
+            "</b> " +
+            String(slice.pct) +
+            "% (" +
+            String(slice.count) +
+            ")";
+          tip.style.display = "block";
+          const x = Math.min(rect.right - 8, Math.max(rect.left + 8, e.clientX + 12));
+          const y = Math.min(rect.bottom - 8, Math.max(rect.top + 8, e.clientY + 12));
+          tip.style.left = x + "px";
+          tip.style.top = y + "px";
+        };
+
+        const onLeave = () => {
+          tip.style.display = "none";
+        };
+
+        donut.addEventListener("mousemove", onMove);
+        donut.addEventListener("mouseleave", onLeave);
+      })();
+
+      function getResultValueByRowId(rowId) {
+        const sel = document.querySelector('select.select[data-row-id=\"' + CSS.escape(rowId) + '\"]');
+        return sel ? (sel.value || "nt") : "nt";
+      }
+
+      function downloadTextFile(filename, content, mime) {
+        const blob = new Blob([content], { type: mime || "text/plain;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(a.href);
+          a.remove();
+        }, 0);
+      }
+
+      function downloadQaReport() {
+        const rows = Array.from(document.querySelectorAll("tbody tr[data-row-id]"));
+        const lines = rows.map((tr) => {
+          const id = tr.getAttribute("data-row-id");
+          const cells = Array.from(tr.querySelectorAll("td"));
+          const no = cells[0]?.textContent?.trim() || "";
+          const domain = cells[1]?.textContent?.trim() || "";
+          const path = cells[2]?.textContent?.trim() || "";
+          const pre = cells[3]?.textContent?.trim() || "";
+          const step = cells[4]?.textContent?.trim() || "";
+          const check = cells[5]?.textContent?.trim() || "";
+          const expected = cells[6]?.textContent?.trim() || "";
+          const result = id ? getResultValueByRowId(id) : "nt";
+          return { no, domain, path, pre, step, check, expected, result };
+        });
+
+        const slices = window.__slices || [];
+        const summaryHtml = slices
+          .map((s) => "<li><b>" + s.label + "</b>: " + s.pct + "% (" + s.count + ")</li>")
+          .join("");
+
+        const tableHtml = lines
+          .map((r) => {
+            return (
+              "<tr>" +
+              "<td>" +
+              r.no +
+              "</td>" +
+              "<td>" +
+              r.domain +
+              "</td>" +
+              "<td>" +
+              r.path +
+              "</td>" +
+              "<td>" +
+              r.result.toUpperCase() +
+              "</td>" +
+              "<td>" +
+              r.check +
+              "</td>" +
+              "<td>" +
+              r.expected +
+              "</td>" +
+              "</tr>"
+            );
+          })
+          .join("");
+
+        const html =
+          "<!doctype html><meta charset=\"utf-8\"/><title>QA 결과 리포트</title>" +
+          "<style>" +
+          "body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;margin:24px;}" +
+          "h1{margin:0 0 8px 0;}" +
+          ".muted{color:#6b7280;}" +
+          "table{width:100%;border-collapse:collapse;margin-top:12px;}" +
+          "th,td{border:1px solid #e5e7eb;padding:8px;vertical-align:top;font-size:12px;}" +
+          "th{background:#f9fafb;text-align:left;}" +
+          "</style>" +
+          "<h1>QA 결과 리포트</h1>" +
+          "<div class=\"muted\">" +
+          new Date().toLocaleString() +
+          "</div>" +
+          "<h3>요약</h3>" +
+          "<ul>" +
+          summaryHtml +
+          "</ul>" +
+          "<h3>상세</h3>" +
+          "<table><thead><tr><th>No</th><th>도메인</th><th>경로</th><th>결과</th><th>체크 항목</th><th>기대 결과</th></tr></thead><tbody>" +
+          tableHtml +
+          "</tbody></table>";
+
+        downloadTextFile("qa-report.html", html, "text/html;charset=utf-8");
+      }
+
+      function downloadRegressionTc() {
+        const rows = Array.from(document.querySelectorAll("tbody tr[data-row-id]"));
+        const lines = rows.map((tr) => {
+          const id = tr.getAttribute("data-row-id");
+          const cells = Array.from(tr.querySelectorAll("td"));
+          const no = cells[0]?.textContent?.trim() || "";
+          const title = (cells[5]?.textContent?.trim() || "").slice(0, 120);
+          const step = cells[4]?.textContent?.trim() || "";
+          const expected = cells[6]?.textContent?.trim() || "";
+          const result = id ? getResultValueByRowId(id) : "nt";
+          return { no, title, step, expected, result };
+        });
+
+        const csv = [
+          ["No", "Title", "Steps", "Expected", "LastResult"].join(","),
+          ...lines.map((r) =>
+            [r.no, r.title, r.step, r.expected, r.result.toUpperCase()]
+              .map((v) => "\"" + String(v).replaceAll("\"", "\"\"") + "\"")
+              .join(",")
+          ),
+        ].join("\n");
+
+        downloadTextFile("regression-tc.csv", csv, "text/csv;charset=utf-8");
+      }
 
       function downloadHtml() {
         const blob = new Blob([document.documentElement.outerHTML], { type: "text/html;charset=utf-8" });
