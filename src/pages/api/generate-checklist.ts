@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { checklistRowsToHtml, type ChecklistRow } from "@/lib/checklist";
-import { fetchFigmaNodeImageUrl, fetchFigmaNodeSummary, parseFigmaUrl } from "@/lib/figma";
+import { fetchFigmaNodeImageUrl, fetchFigmaNodeSummary, fetchFigmaNodeText, parseFigmaUrl } from "@/lib/figma";
 
 type GenerateChecklistRequest = {
   figmaUrl: string;
@@ -20,6 +20,7 @@ type GenerateChecklistResponse =
         figmaNodeName?: string;
         figmaNodeDescription?: string;
         figmaImageUrl?: string | null;
+        figmaTexts?: string[];
         figmaError?: string;
         used: { figma: boolean; llm: boolean };
       };
@@ -197,6 +198,59 @@ function rowsFromNumberedDescription(params: {
   return rows.length ? rows.slice(0, 40) : [];
 }
 
+function rowsFromFigmaTexts(params: { texts: string[]; pathHint: string }): ChecklistRow[] {
+  const { texts, pathHint } = params;
+  const t = texts
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((s) => s.length >= 2 && s.length <= 60)
+    .slice(0, 40);
+
+  if (!t.length) return [];
+
+  const rows: ChecklistRow[] = [];
+  for (const label of t) {
+    rows.push({
+      domain: "웹",
+      path: pathHint,
+      precondition: "화면 로드 완료",
+      step: `화면에서 "${label}" 텍스트가 보이는지 확인`,
+      checkitem: "텍스트 렌더링/줄바꿈/잘림 여부",
+      result: `"${label}"가 의도한 위치/스타일로 표시된다`,
+    });
+    rows.push({
+      domain: "웹",
+      path: pathHint,
+      precondition: `"${label}"가 버튼/링크/탭 역할인 경우`,
+      step: `"${label}" 클릭`,
+      checkitem: "클릭 동작/포커스/비활성 상태",
+      result: "정상 동작하며, 비활성 시에는 동작하지 않고 이유가 명확하다",
+    });
+  }
+
+  // 공통 품질 항목 몇 개 추가
+  rows.push(
+    {
+      domain: "접근성",
+      path: pathHint,
+      precondition: "키보드 사용",
+      step: "Tab/Shift+Tab으로 주요 요소 순회",
+      checkitem: "포커스 이동/표시/순서",
+      result: "포커스가 논리적인 순서로 이동하고 시각적으로 명확하다",
+    },
+    {
+      domain: "성능",
+      path: pathHint,
+      precondition: "네트워크 느림",
+      step: "Slow 3G 수준에서 화면 로딩",
+      checkitem: "로딩 상태/스켈레톤/지연 처리",
+      result: "로딩 중 사용자에게 상태가 제공되고 UI가 깨지지 않는다",
+    }
+  );
+
+  return rows.slice(0, 80);
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse<GenerateChecklistResponse>) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "POST만 지원합니다." });
@@ -228,6 +282,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   let figmaNodeName: string | undefined;
   let figmaNodeDescription: string | undefined;
   let figmaImageUrl: string | null | undefined;
+  let figmaTexts: string[] | undefined;
   let usedFigma = false;
   let figmaError: string | undefined;
 
@@ -239,7 +294,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     figmaError = "FIGMA_TOKEN(또는 입력 토큰)이 없어 노드 설명/스크린샷을 가져올 수 없습니다.";
   } else {
     try {
-      const [summary, imageUrl] = await Promise.all([
+      const [summary, imageUrl, texts] = await Promise.all([
         fetchFigmaNodeSummary({
           figmaToken,
           fileKey: parsed.fileKey,
@@ -250,10 +305,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           fileKey: parsed.fileKey,
           nodeId: parsed.nodeId,
         }),
+        fetchFigmaNodeText({
+          figmaToken,
+          fileKey: parsed.fileKey,
+          nodeId: parsed.nodeId,
+        }),
       ]);
       figmaNodeName = summary.name;
       figmaNodeDescription = summary.description;
       figmaImageUrl = imageUrl;
+      figmaTexts = texts;
       usedFigma = true;
     } catch (e) {
       figmaError = e instanceof Error ? e.message : String(e);
@@ -266,6 +327,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     body.extraDescription ? `사용자 추가 설명: ${body.extraDescription}` : "",
     figmaNodeName ? `피그마 노드 이름: ${figmaNodeName}` : "",
     figmaNodeDescription ? `피그마 노드 설명: ${figmaNodeDescription}` : "",
+    figmaTexts?.length ? `피그마 화면 텍스트(발췌):\n- ${figmaTexts.slice(0, 60).join("\n- ")}` : "",
     figmaImageUrl ? `피그마 스크린샷 URL(참고용): ${figmaImageUrl}` : "",
     `요청: 위 정보를 바탕으로 체크리스트를 작성해줘.`,
   ]
@@ -290,7 +352,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           pathHint: body.domainHint?.trim() ? `/${body.domainHint.trim()}` : "/(unknown)",
         })
       : [];
-    rows = fromDesc.length ? fromDesc : fallbackRows(body);
+    const fromTexts =
+      !fromDesc.length && figmaTexts?.length
+        ? rowsFromFigmaTexts({
+            texts: figmaTexts,
+            pathHint: body.domainHint?.trim() ? `/${body.domainHint.trim()}` : "/(unknown)",
+          })
+        : [];
+    rows = fromDesc.length ? fromDesc : fromTexts.length ? fromTexts : fallbackRows(body);
   }
 
   const title = "QA 체크리스트 (자동 생성)";
@@ -309,6 +378,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       figmaNodeName,
       figmaNodeDescription,
       figmaImageUrl,
+      figmaTexts,
       figmaError,
       used: { figma: usedFigma, llm: usedLlm },
     },

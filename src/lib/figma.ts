@@ -90,6 +90,73 @@ export async function fetchFigmaNodeSummary(params: {
   };
 }
 
+type AnyNode = {
+  id?: string;
+  name?: string;
+  type?: string;
+  characters?: string;
+  visible?: boolean;
+  children?: AnyNode[];
+};
+
+function collectTextNodes(root: AnyNode): string[] {
+  const out: string[] = [];
+  const stack: AnyNode[] = [root];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (!n) continue;
+    if (n.visible === false) continue;
+    if (n.type === "TEXT" && typeof n.characters === "string") {
+      const t = n.characters.trim();
+      if (t) out.push(t);
+    }
+    if (Array.isArray(n.children)) {
+      for (let i = n.children.length - 1; i >= 0; i--) stack.push(n.children[i]!);
+    }
+  }
+  return out;
+}
+
+export async function fetchFigmaNodeText(params: {
+  figmaToken: string;
+  fileKey: string;
+  nodeId: string;
+}): Promise<string[]> {
+  const { figmaToken, fileKey, nodeId } = params;
+  const res = await fetch(
+    `https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}`,
+    { headers: { "X-Figma-Token": figmaToken } }
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Figma nodes API failed: ${res.status} ${text}`.trim());
+  }
+
+  const data = (await res.json().catch(() => null)) as
+    | {
+        nodes?: Record<string, { document?: unknown }>;
+      }
+    | null;
+  const doc = (data?.nodes?.[nodeId]?.document ?? null) as AnyNode | null;
+  if (!doc) return [];
+
+  // 중복 제거 + 너무 많은 텍스트 제한
+  const texts = collectTextNodes(doc)
+    .map((t) => t.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const uniq: string[] = [];
+  const seen = new Set<string>();
+  for (const t of texts) {
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniq.push(t);
+    if (uniq.length >= 120) break;
+  }
+  return uniq;
+}
+
 export async function fetchFigmaNodeImageUrl(params: {
   figmaToken: string;
   fileKey: string;
