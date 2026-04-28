@@ -2,6 +2,9 @@
   "name": "checklist_auto",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "dev": "WATCHPACK_POLLING=true next dev",
     "build": "next build",
