@@ -90,6 +90,53 @@ export default function DashboardClient() {
     setBusy(true);
     setProgress(3);
 
+    // 팝업은 사용자 제스처(클릭) 직후에 열어야 차단/빈 창 이슈가 줄어듭니다.
+    // (fetch 이후에 열면 브라우저가 팝업으로 판단하거나, 새 창 document 접근이 제한될 수 있음)
+    const w = window.open("", "_blank", "noopener");
+    if (!w) {
+      setBusy(false);
+      setProgress(0);
+      setError("새 창이 차단되었습니다. 팝업 차단을 해제하고 다시 시도해주세요.");
+      return;
+    }
+    try {
+      w.document.open();
+      w.document.write(`<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>체크리스트 생성 중...</title>
+    <style>
+      body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; background: #0b1020; color: rgba(255,255,255,0.92); }
+      .wrap { max-width: 720px; margin: 0 auto; padding: 28px 18px; }
+      .card { border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; }
+      .muted { color: rgba(255,255,255,0.72); font-size: 13px; line-height: 1.5; }
+      .bar { height: 8px; background: rgba(255,255,255,0.12); border-radius: 999px; overflow: hidden; margin-top: 12px; }
+      .bar > div { height: 100%; width: 35%; background: rgba(124,58,237,0.85); animation: move 1.1s infinite ease-in-out; transform-origin: left; }
+      @keyframes move { 0% { transform: translateX(-20%); } 100% { transform: translateX(240%); } }
+      code { color: rgba(147,197,253,0.95); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div style="font-weight: 700; letter-spacing: -0.02em;">체크리스트를 생성하는 중입니다…</div>
+        <div class="muted" style="margin-top: 8px;">
+          이 창은 잠시 후 자동으로 결과 표로 바뀝니다.<br/>
+          문제가 계속되면 브라우저 콘솔 오류(팝업/권한/정책)를 확인해주세요.
+        </div>
+        <div class="bar"><div></div></div>
+      </div>
+    </div>
+  </body>
+</html>`);
+      w.document.close();
+    } catch {
+      // 새 창 document 접근이 막힌 경우(브라우저 정책 등)에도 계속 진행하고,
+      // 성공 시 Blob URL로 결과를 열어준다.
+    }
+
     let t: number | null = null;
     const startFakeProgress = () => {
       t = window.setInterval(() => {
@@ -125,13 +172,19 @@ export default function DashboardClient() {
       }
 
       setProgress(100);
-      const w = window.open("", "_blank", "noopener,noreferrer");
-      if (!w) {
-        throw new Error("새 창이 차단되었습니다. 팝업 차단을 해제하고 다시 시도해주세요.");
+      // 1) 가능하면 새 창 document에 직접 렌더
+      // 2) 정책/브라우저 제한으로 실패하면 Blob URL로 대체 렌더
+      try {
+        w.document.open();
+        w.document.write(data.html);
+        w.document.close();
+      } catch {
+        const blob = new Blob([data.html], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        w.location.href = url;
+        // 메모리 해제(페이지 이동 후 일정 시간 뒤)
+        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
       }
-      w.document.open();
-      w.document.write(data.html);
-      w.document.close();
 
       const used = data.context?.used;
       setLastInfo(
@@ -141,6 +194,30 @@ export default function DashboardClient() {
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.");
+      // 실패 시에도 이미 열린 새 창이 있을 수 있으니 사용자가 원인 파악을 할 수 있게 힌트를 제공
+      try {
+        w.document.open();
+        w.document.write(`<!doctype html><meta charset="utf-8"/><title>생성 실패</title>
+<body style="margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#0b1020;color:rgba(255,255,255,0.92);">
+<div style="max-width:720px;margin:0 auto;padding:28px 18px;">
+  <div style="border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.06);border-radius:14px;padding:16px;">
+    <div style="font-weight:700;letter-spacing:-0.02em;">체크리스트 생성에 실패했습니다.</div>
+    <div style="margin-top:10px;color:rgba(255,255,255,0.72);font-size:13px;line-height:1.5;">
+      아래 메시지를 확인하고 다시 시도해주세요.
+    </div>
+    <pre style="margin-top:12px;white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.10);padding:12px;border-radius:10px;">${String(
+      e instanceof Error ? e.message : e
+    )
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")}</pre>
+  </div>
+</div>
+</body>`);
+        w.document.close();
+      } catch {
+        // ignore
+      }
     } finally {
       if (t) window.clearInterval(t);
       setBusy(false);
