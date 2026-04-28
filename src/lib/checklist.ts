@@ -480,9 +480,16 @@ export function checklistRowsToHtml(params: {
         else tr.classList.add("nt");
       }
 
-      (function initResults() {
-        const state = readState();
+      function initResults(attempt) {
+        const tries = typeof attempt === "number" ? attempt : 0;
         const selects = Array.from(document.querySelectorAll("select.select"));
+        if (selects.length === 0 && tries < 40) {
+          // 일부 브라우저/렌더러에서 srcDoc 파싱 타이밍 이슈가 있어 재시도
+          setTimeout(() => initResults(tries + 1), 50);
+          return;
+        }
+
+        const state = readState();
         window.__selectByRowId = {};
         for (const s of selects) {
           const id = s.getAttribute("data-row-id");
@@ -490,22 +497,25 @@ export function checklistRowsToHtml(params: {
           const saved = id && typeof state[id] === "string" ? state[id] : "";
           s.value = saved || "nt";
           applyResultStyles(s);
-          s.addEventListener("change", () => {
+          const onChange = () => {
             const next = readState();
             if (id) next[id] = s.value || "nt";
             writeState(next);
             applyResultStyles(s);
             updateSummary();
-          });
-          s.addEventListener("input", () => {
-            const next = readState();
-            if (id) next[id] = s.value || "nt";
-            writeState(next);
-            applyResultStyles(s);
-            updateSummary();
-          });
+          };
+          s.addEventListener("change", onChange);
+          s.addEventListener("input", onChange);
         }
         updateSummary();
+      }
+
+      (function boot() {
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", () => initResults(0), { once: true });
+        } else {
+          initResults(0);
+        }
       })();
 
       (function initChartHover() {
