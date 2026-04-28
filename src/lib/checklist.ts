@@ -692,7 +692,7 @@ export function checklistRowsToHtml(params: {
           "html += '<h3>상세</h3><table><thead><tr><th>No</th><th>도메인</th><th>경로</th><th>결과</th><th>체크 항목</th><th>기대 결과</th></tr></thead><tbody>'+window.__data.detailsRows+'</tbody></table>';" +
           "document.getElementById('report').innerHTML = html;" +
           "};" +
-          "</script>";
+          "<\\/script>";
 
         // Blob URL로 새 탭에 열기
         const blob = new Blob([initialHtml], { type: "text/html;charset=utf-8" });
