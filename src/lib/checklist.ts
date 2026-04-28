@@ -36,9 +36,12 @@ export function checklistRowsToHtml(params: {
     .map((r, idx) => {
       const id = `row_${idx}`;
       const select = `<select class="select" data-row-id="${escape(id)}">
-  <option value="">미선택</option>
+  <option value="nt">N/T</option>
   <option value="pass">PASS</option>
   <option value="fail">FAIL</option>
+  <option value="na">N/A</option>
+  <option value="block">BLOCK</option>
+  <option value="fixed">FIXED</option>
 </select>`;
       return `<tr data-row-id="${escape(id)}">${[
         tdEscClass(String(idx + 1), "no"),
@@ -82,11 +85,14 @@ export function checklistRowsToHtml(params: {
     <div class="chartCard">
       <div class="shotTitle">테스트 결과 요약</div>
       <div class="chartRow">
-        <div class="donut" id="donut" aria-label="PASS/FAIL/미선택 비율"></div>
+        <div class="donut" id="donut" aria-label="테스트 결과 비율"></div>
         <div class="legend">
           <div class="legendItem"><span class="swatch pass"></span> PASS <b id="pctPass">0%</b> <span class="muted">(<span id="cntPass">0</span>)</span></div>
           <div class="legendItem"><span class="swatch fail"></span> FAIL <b id="pctFail">0%</b> <span class="muted">(<span id="cntFail">0</span>)</span></div>
-          <div class="legendItem"><span class="swatch none"></span> 미선택 <b id="pctNone">100%</b> <span class="muted">(<span id="cntNone">0</span>)</span></div>
+          <div class="legendItem"><span class="swatch nt"></span> N/T <b id="pctNt">0%</b> <span class="muted">(<span id="cntNt">0</span>)</span></div>
+          <div class="legendItem"><span class="swatch na"></span> N/A <b id="pctNa">0%</b> <span class="muted">(<span id="cntNa">0</span>)</span></div>
+          <div class="legendItem"><span class="swatch block"></span> BLOCK <b id="pctBlock">0%</b> <span class="muted">(<span id="cntBlock">0</span>)</span></div>
+          <div class="legendItem"><span class="swatch fixed"></span> FIXED <b id="pctFixed">0%</b> <span class="muted">(<span id="cntFixed">0</span>)</span></div>
           <div class="legendHint muted">총 <b id="cntTotal">0</b>개 항목 기준 (100%)</div>
         </div>
       </div>
@@ -178,11 +184,14 @@ export function checklistRowsToHtml(params: {
         height: 100%;
         display: flex;
         flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
       }
       .chartRow {
         display: grid;
         grid-template-columns: 300px 1fr;
-        gap: 14px;
+        gap: 30px;
         align-items: center;
         flex: 1;
         min-height: 0;
@@ -210,14 +219,17 @@ export function checklistRowsToHtml(params: {
         background: rgba(11,16,32,0.85);
         border: 1px solid rgba(255,255,255,0.10);
       }
-      .legend { display: grid; gap: 10px; }
+      .legend { display: grid; gap: 10px; justify-items: start; text-align: left; }
       .legendItem { display: flex; align-items: baseline; gap: 8px; color: rgba(255,255,255,0.88); }
       .legendItem b { margin-left: 4px; }
       .legendHint { margin-top: 6px; font-size: 12px; }
       .swatch { width: 10px; height: 10px; border-radius: 3px; display:inline-block; }
       .swatch.pass { background: rgba(34,197,94,0.9); }
       .swatch.fail { background: rgba(244,63,94,0.9); }
-      .swatch.none { background: rgba(255,255,255,0.18); }
+      .swatch.nt { background: rgba(148,163,184,0.9); }
+      .swatch.na { background: rgba(96,165,250,0.9); }
+      .swatch.block { background: rgba(250,204,21,0.95); }
+      .swatch.fixed { background: rgba(167,139,250,0.95); }
       .muted { color: rgba(255,255,255,0.72); }
       .tableWrap {
         margin-top: 18px;
@@ -277,8 +289,28 @@ export function checklistRowsToHtml(params: {
         border-color: rgba(244,63,94,0.55);
         background: rgba(244,63,94,0.22);
       }
+      .select.nt {
+        border-color: rgba(148,163,184,0.55);
+        background: rgba(148,163,184,0.20);
+      }
+      .select.na {
+        border-color: rgba(96,165,250,0.55);
+        background: rgba(96,165,250,0.20);
+      }
+      .select.block {
+        border-color: rgba(250,204,21,0.60);
+        background: rgba(250,204,21,0.18);
+      }
+      .select.fixed {
+        border-color: rgba(167,139,250,0.60);
+        background: rgba(167,139,250,0.20);
+      }
       tr.pass td { background: rgba(34,197,94,0.06); }
       tr.fail td { background: rgba(244,63,94,0.06); }
+      tr.nt td { background: rgba(148,163,184,0.05); }
+      tr.na td { background: rgba(96,165,250,0.05); }
+      tr.block td { background: rgba(250,204,21,0.05); }
+      tr.fixed td { background: rgba(167,139,250,0.05); }
       tr:hover td { background: rgba(255,255,255,0.04); }
       .hint { margin-top: 12px; color: rgba(255,255,255,0.62); font-size: 12px; }
       @media print {
@@ -342,53 +374,89 @@ export function checklistRowsToHtml(params: {
       }
       function updateSummary() {
         const selects = Array.from(document.querySelectorAll("select.select"));
-        let pass = 0, fail = 0, none = 0;
+        let pass = 0, fail = 0, nt = 0, na = 0, block = 0, fixed = 0;
         for (const s of selects) {
           const v = s.value || "";
           if (v === "pass") pass++;
           else if (v === "fail") fail++;
-          else none++;
+          else if (v === "nt") nt++;
+          else if (v === "na") na++;
+          else if (v === "block") block++;
+          else if (v === "fixed") fixed++;
+          else nt++;
         }
 
-        const total = pass + fail + none;
+        const total = pass + fail + nt + na + block + fixed;
         const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
         const pPass = pct(pass);
         const pFail = pct(fail);
-        const pNone = Math.max(0, 100 - pPass - pFail);
+        const pNt = pct(nt);
+        const pNa = pct(na);
+        const pBlock = pct(block);
+        const pFixed = Math.max(0, 100 - pPass - pFail - pNt - pNa - pBlock);
 
         document.getElementById("pctPass").textContent = String(pPass) + "%";
         document.getElementById("pctFail").textContent = String(pFail) + "%";
-        document.getElementById("pctNone").textContent = String(pNone) + "%";
+        document.getElementById("pctNt").textContent = String(pNt) + "%";
+        document.getElementById("pctNa").textContent = String(pNa) + "%";
+        document.getElementById("pctBlock").textContent = String(pBlock) + "%";
+        document.getElementById("pctFixed").textContent = String(pFixed) + "%";
         document.getElementById("cntPass").textContent = String(pass);
         document.getElementById("cntFail").textContent = String(fail);
-        document.getElementById("cntNone").textContent = String(none);
+        document.getElementById("cntNt").textContent = String(nt);
+        document.getElementById("cntNa").textContent = String(na);
+        document.getElementById("cntBlock").textContent = String(block);
+        document.getElementById("cntFixed").textContent = String(fixed);
         document.getElementById("cntTotal").textContent = String(total);
 
         const degPass = (pPass / 100) * 360;
         const degFail = (pFail / 100) * 360;
+        const degNt = (pNt / 100) * 360;
+        const degNa = (pNa / 100) * 360;
+        const degBlock = (pBlock / 100) * 360;
+        const degFixed = Math.max(0, 360 - degPass - degFail - degNt - degNa - degBlock);
+        const a0 = 0;
+        const a1 = a0 + degPass;
+        const a2 = a1 + degFail;
+        const a3 = a2 + degNt;
+        const a4 = a3 + degNa;
+        const a5 = a4 + degBlock;
+        const a6 = a5 + degFixed;
         const donut = document.getElementById("donut");
         if (donut) {
-          donut.style.background = "conic-gradient(" +
-            "rgba(34,197,94,0.90) 0deg " + degPass + "deg, " +
-            "rgba(244,63,94,0.90) " + degPass + "deg " + (degPass + degFail) + "deg, " +
-            "rgba(255,255,255,0.18) " + (degPass + degFail) + "deg 360deg" +
-          ")";
+          donut.style.background =
+            "conic-gradient(" +
+            "rgba(34,197,94,0.90) " + a0 + "deg " + a1 + "deg, " +
+            "rgba(244,63,94,0.90) " + a1 + "deg " + a2 + "deg, " +
+            "rgba(148,163,184,0.90) " + a2 + "deg " + a3 + "deg, " +
+            "rgba(96,165,250,0.90) " + a3 + "deg " + a4 + "deg, " +
+            "rgba(250,204,21,0.95) " + a4 + "deg " + a5 + "deg, " +
+            "rgba(167,139,250,0.95) " + a5 + "deg " + a6 + "deg" +
+            ")";
         }
       }
 
       function applyResultStyles(selectEl) {
         const v = (selectEl.value || "");
-        selectEl.classList.remove("pass", "fail");
+        selectEl.classList.remove("pass", "fail", "nt", "na", "block", "fixed");
         if (v === "pass") selectEl.classList.add("pass");
-        if (v === "fail") selectEl.classList.add("fail");
+        else if (v === "fail") selectEl.classList.add("fail");
+        else if (v === "na") selectEl.classList.add("na");
+        else if (v === "block") selectEl.classList.add("block");
+        else if (v === "fixed") selectEl.classList.add("fixed");
+        else selectEl.classList.add("nt");
 
         const rowId = selectEl.getAttribute("data-row-id");
         if (!rowId) return;
         const tr = document.querySelector('tr[data-row-id=\"' + CSS.escape(rowId) + '\"]');
         if (!tr) return;
-        tr.classList.remove("pass", "fail");
+        tr.classList.remove("pass", "fail", "nt", "na", "block", "fixed");
         if (v === "pass") tr.classList.add("pass");
-        if (v === "fail") tr.classList.add("fail");
+        else if (v === "fail") tr.classList.add("fail");
+        else if (v === "na") tr.classList.add("na");
+        else if (v === "block") tr.classList.add("block");
+        else if (v === "fixed") tr.classList.add("fixed");
+        else tr.classList.add("nt");
       }
 
       (function initResults() {
