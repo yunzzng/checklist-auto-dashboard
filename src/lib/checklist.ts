@@ -115,7 +115,7 @@ export function checklistRowsToHtml(params: {
         background: linear-gradient(to bottom, #000000, #020617, #000000);
         color: var(--text);
       }
-      .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 18px 60px; }
+      .wrap { max-width: 1200px; margin: 0; padding: 50px; }
       .top {
         display: flex; gap: 12px; align-items: baseline; justify-content: space-between;
         flex-wrap: wrap;
@@ -167,6 +167,7 @@ export function checklistRowsToHtml(params: {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 14px;
+        align-items: stretch;
       }
       .mediaGrid.single { grid-template-columns: 1fr; }
       .chartCard {
@@ -174,8 +175,18 @@ export function checklistRowsToHtml(params: {
         border: 1px solid var(--line);
         background: var(--panel);
         border-radius: 14px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
       }
-      .chartRow { display: grid; grid-template-columns: 168px 1fr; gap: 14px; align-items: center; }
+      .chartRow {
+        display: grid;
+        grid-template-columns: 168px 1fr;
+        gap: 14px;
+        align-items: center;
+        flex: 1;
+        min-height: 0;
+      }
       .donut {
         width: 168px;
         height: 168px;
