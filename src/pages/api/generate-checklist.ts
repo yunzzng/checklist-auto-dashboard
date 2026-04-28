@@ -71,12 +71,17 @@ async function generateWithOpenAI(params: {
 }): Promise<{ rows: ChecklistRow[] } | null> {
   const { apiKey, model, prompt } = params;
 
+  const controller = new AbortController();
+  const timeoutMs = 18_000;
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
+    signal: controller.signal,
     body: JSON.stringify({
       model,
       temperature: 0.2,
@@ -86,7 +91,7 @@ async function generateWithOpenAI(params: {
         { role: "user", content: prompt },
       ],
     }),
-  });
+  }).finally(() => clearTimeout(t));
 
   if (!res.ok) return null;
 
@@ -167,18 +172,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
   if (parsed?.kind === "design" && parsed.nodeId && figmaToken) {
     try {
-      const summary = await fetchFigmaNodeSummary({
-        figmaToken,
-        fileKey: parsed.fileKey,
-        nodeId: parsed.nodeId,
-      });
+      const [summary, imageUrl] = await Promise.all([
+        fetchFigmaNodeSummary({
+          figmaToken,
+          fileKey: parsed.fileKey,
+          nodeId: parsed.nodeId,
+        }),
+        fetchFigmaNodeImageUrl({
+          figmaToken,
+          fileKey: parsed.fileKey,
+          nodeId: parsed.nodeId,
+        }),
+      ]);
       figmaNodeName = summary.name;
       figmaNodeDescription = summary.description;
-      figmaImageUrl = await fetchFigmaNodeImageUrl({
-        figmaToken,
-        fileKey: parsed.fileKey,
-        nodeId: parsed.nodeId,
-      });
+      figmaImageUrl = imageUrl;
       usedFigma = true;
     } catch {
       // ignore

@@ -124,10 +124,10 @@ export default function DashboardClient() {
       t = window.setInterval(() => {
         setProgress((p) => {
           if (p >= 92) return p;
-          const next = p + (p < 40 ? 7 : p < 70 ? 4 : 2);
+          const next = p + (p < 55 ? 10 : p < 80 ? 6 : 3);
           return Math.min(92, next);
         });
-      }, 450);
+      }, 220);
     };
     startFakeProgress();
 
