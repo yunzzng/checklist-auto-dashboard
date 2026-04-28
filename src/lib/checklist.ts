@@ -173,6 +173,16 @@ export function checklistRowsToHtml(params: {
         outline: none;
       }
       .select:focus { border-color: rgba(124,58,237,0.65); }
+      .select.pass {
+        border-color: rgba(34,197,94,0.55);
+        background: rgba(34,197,94,0.22);
+      }
+      .select.fail {
+        border-color: rgba(244,63,94,0.55);
+        background: rgba(244,63,94,0.22);
+      }
+      tr.pass td { background: rgba(34,197,94,0.06); }
+      tr.fail td { background: rgba(244,63,94,0.06); }
       .summary { margin-top: 12px; color: rgba(255,255,255,0.72); font-size: 12px; display:flex; gap:10px; flex-wrap:wrap; }
       .pill { border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); padding: 6px 10px; border-radius: 999px; }
       tr:hover td { background: rgba(255,255,255,0.04); }
@@ -237,16 +247,33 @@ export function checklistRowsToHtml(params: {
         document.getElementById("countNone").textContent = String(none);
       }
 
+      function applyResultStyles(selectEl) {
+        const v = (selectEl.value || "");
+        selectEl.classList.remove("pass", "fail");
+        if (v === "pass") selectEl.classList.add("pass");
+        if (v === "fail") selectEl.classList.add("fail");
+
+        const rowId = selectEl.getAttribute("data-row-id");
+        if (!rowId) return;
+        const tr = document.querySelector('tr[data-row-id=\"' + CSS.escape(rowId) + '\"]');
+        if (!tr) return;
+        tr.classList.remove("pass", "fail");
+        if (v === "pass") tr.classList.add("pass");
+        if (v === "fail") tr.classList.add("fail");
+      }
+
       (function initResults() {
         const state = readState();
         const selects = Array.from(document.querySelectorAll("select.select"));
         for (const s of selects) {
           const id = s.getAttribute("data-row-id");
           if (id && typeof state[id] === "string") s.value = state[id];
+          applyResultStyles(s);
           s.addEventListener("change", () => {
             const next = readState();
             if (id) next[id] = s.value || "";
             writeState(next);
+            applyResultStyles(s);
             updateSummary();
           });
         }
