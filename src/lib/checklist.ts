@@ -67,15 +67,31 @@ export function checklistRowsToHtml(params: {
     .filter(Boolean)
     .join("");
 
-  const screenshot = context?.figmaImageUrl
-    ? `<div class="shot">
-        <div class="shotTitle">Screen</div>
-        <a href="${escape(context.figmaImageUrl)}" target="_blank" rel="noreferrer noopener">
-          <img alt="Figma screenshot" src="${escape(context.figmaImageUrl)}" />
-        </a>
-        <div class="shotHint">이미지 클릭 시 원본 크기로 새 탭에서 열립니다.</div>
-      </div>`
-    : "";
+  const media = `<div class="mediaGrid ${context?.figmaImageUrl ? "" : "single"}">
+    ${
+      context?.figmaImageUrl
+        ? `<div class="shot">
+            <div class="shotTitle">Screen</div>
+            <a href="${escape(context.figmaImageUrl)}" target="_blank" rel="noreferrer noopener">
+              <img alt="Figma screenshot" src="${escape(context.figmaImageUrl)}" />
+            </a>
+            <div class="shotHint">이미지 클릭 시 원본 크기로 새 탭에서 열립니다.</div>
+          </div>`
+        : ""
+    }
+    <div class="chartCard">
+      <div class="shotTitle">테스트 결과 요약</div>
+      <div class="chartRow">
+        <div class="donut" id="donut" aria-label="PASS/FAIL/미선택 비율"></div>
+        <div class="legend">
+          <div class="legendItem"><span class="swatch pass"></span> PASS <b id="pctPass">0%</b> <span class="muted">(<span id="cntPass">0</span>)</span></div>
+          <div class="legendItem"><span class="swatch fail"></span> FAIL <b id="pctFail">0%</b> <span class="muted">(<span id="cntFail">0</span>)</span></div>
+          <div class="legendItem"><span class="swatch none"></span> 미선택 <b id="pctNone">100%</b> <span class="muted">(<span id="cntNone">0</span>)</span></div>
+          <div class="legendHint muted">총 <b id="cntTotal">0</b>개 항목 기준 (100%)</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
 
   return `<!doctype html>
 <html lang="ko">
@@ -146,21 +162,67 @@ export function checklistRowsToHtml(params: {
         background: rgba(0,0,0,0.22);
       }
       .shotHint { margin-top: 10px; color: rgba(255,255,255,0.62); font-size: 12px; }
+      .mediaGrid {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .mediaGrid.single { grid-template-columns: 1fr; }
+      .chartCard {
+        padding: 14px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 14px;
+      }
+      .chartRow { display: grid; grid-template-columns: 168px 1fr; gap: 14px; align-items: center; }
+      .donut {
+        width: 168px;
+        height: 168px;
+        border-radius: 999px;
+        background: conic-gradient(
+          rgba(34,197,94,0.90) 0deg,
+          rgba(34,197,94,0.90) 0deg,
+          rgba(244,63,94,0.90) 0deg,
+          rgba(244,63,94,0.90) 0deg,
+          rgba(255,255,255,0.18) 0deg,
+          rgba(255,255,255,0.18) 360deg
+        );
+        position: relative;
+        border: 1px solid rgba(255,255,255,0.14);
+      }
+      .donut::after {
+        content: "";
+        position: absolute;
+        inset: 16px;
+        border-radius: 999px;
+        background: rgba(11,16,32,0.85);
+        border: 1px solid rgba(255,255,255,0.10);
+      }
+      .legend { display: grid; gap: 8px; }
+      .legendItem { display: flex; align-items: baseline; gap: 8px; color: rgba(255,255,255,0.88); }
+      .legendItem b { margin-left: 4px; }
+      .legendHint { margin-top: 6px; font-size: 12px; }
+      .swatch { width: 10px; height: 10px; border-radius: 3px; display:inline-block; }
+      .swatch.pass { background: rgba(34,197,94,0.9); }
+      .swatch.fail { background: rgba(244,63,94,0.9); }
+      .swatch.none { background: rgba(255,255,255,0.18); }
+      .muted { color: rgba(255,255,255,0.72); }
       .tableWrap {
         margin-top: 18px;
         border: 1px solid var(--line);
         background: var(--panel);
         border-radius: 14px;
-        overflow: hidden;
+        overflow: auto;
       }
-      table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      table { width: 100%; min-width: 1400px; border-collapse: collapse; table-layout: fixed; }
       col.no { width: 56px; }
       col.domain { width: 88px; }
       col.path { width: 120px; }
       col.precondition { width: 160px; }
       col.step { width: 280px; }
       col.checkitem { width: 220px; }
-      col.expected { width: 260px; }
+      col.expected { width: 320px; }
       col.actual { width: 150px; }
       th, td {
         border-bottom: 1px solid rgba(255,255,255,0.10);
@@ -229,7 +291,7 @@ export function checklistRowsToHtml(params: {
         </div>
       </div>
       ${metaBits}
-      ${screenshot}
+      ${media}
       <div class="tableWrap">
         <table>
           <colgroup>
@@ -286,6 +348,31 @@ export function checklistRowsToHtml(params: {
         document.getElementById("countPass").textContent = String(pass);
         document.getElementById("countFail").textContent = String(fail);
         document.getElementById("countNone").textContent = String(none);
+
+        const total = pass + fail + none;
+        const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
+        const pPass = pct(pass);
+        const pFail = pct(fail);
+        const pNone = Math.max(0, 100 - pPass - pFail);
+
+        document.getElementById("pctPass").textContent = String(pPass) + "%";
+        document.getElementById("pctFail").textContent = String(pFail) + "%";
+        document.getElementById("pctNone").textContent = String(pNone) + "%";
+        document.getElementById("cntPass").textContent = String(pass);
+        document.getElementById("cntFail").textContent = String(fail);
+        document.getElementById("cntNone").textContent = String(none);
+        document.getElementById("cntTotal").textContent = String(total);
+
+        const degPass = (pPass / 100) * 360;
+        const degFail = (pFail / 100) * 360;
+        const donut = document.getElementById("donut");
+        if (donut) {
+          donut.style.background = "conic-gradient(" +
+            "rgba(34,197,94,0.90) 0deg " + degPass + "deg, " +
+            "rgba(244,63,94,0.90) " + degPass + "deg " + (degPass + degFail) + "deg, " +
+            "rgba(255,255,255,0.18) " + (degPass + degFail) + "deg 360deg" +
+          ")";
+        }
       }
 
       function applyResultStyles(selectEl) {
