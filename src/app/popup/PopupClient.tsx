@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Payload =
@@ -20,29 +20,6 @@ function safeParse(raw: string | null): Payload | null {
   } catch {
     return null;
   }
-}
-
-function ChecklistFrame({ html }: { html: string }) {
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    const doc = iframe?.contentDocument;
-    if (!doc) return;
-
-    doc.open();
-    doc.write(html);
-    doc.close();
-  }, [html]);
-
-  return (
-    <iframe
-      ref={iframeRef}
-      title="Checklist"
-      className="h-screen w-screen border-0"
-      sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox allow-modals"
-    />
-  );
 }
 
 export default function PopupClient() {
@@ -90,6 +67,14 @@ export default function PopupClient() {
     };
   }, [storageKey]);
 
+  useEffect(() => {
+    if (payload.status !== "ready") return;
+
+    document.open();
+    document.write(payload.html);
+    document.close();
+  }, [payload]);
+
   if (payload.status === "error") {
     return (
       <div className="min-h-screen bg-[#0b1020] text-white">
@@ -106,7 +91,15 @@ export default function PopupClient() {
   }
 
   if (payload.status === "ready") {
-    return <ChecklistFrame html={payload.html} />;
+    return (
+      <div className="min-h-screen bg-[#0b1020] text-white">
+        <div className="mx-auto max-w-2xl px-6 py-10">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="text-base font-semibold">체크리스트를 여는 중...</div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
