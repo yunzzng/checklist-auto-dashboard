@@ -507,7 +507,7 @@ export function checklistRowsToHtml(params: {
           const id = s.getAttribute("data-row-id");
           if (id) window.__selectByRowId[id] = s;
           const saved = id && typeof state[id] === "string" ? state[id] : "";
-          s.value = saved || "nt";
+          s.value = saved || s.value || "nt";
           applyResultStyles(s);
           const onChange = () => handleResultChange(s);
           s.addEventListener("change", onChange);
@@ -598,167 +598,178 @@ export function checklistRowsToHtml(params: {
         }, 0);
       }
 
-      function openQaReport() {
-        const rows = Array.from(document.querySelectorAll("tbody tr[data-row-id]"));
-        const lines = rows.map((tr) => {
+      function escapeHtml(v) {
+        return String(v ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function resultLabel(v) {
+        const labels = { pass: "PASS", fail: "FAIL", nt: "N/T", na: "N/A", block: "BLOCK", fixed: "FIXED" };
+        return labels[v] || String(v || "nt").toUpperCase();
+      }
+
+      function collectChecklistRows() {
+        return Array.from(document.querySelectorAll("tbody tr[data-row-id]")).map((tr) => {
           const id = tr.getAttribute("data-row-id");
           const cells = Array.from(tr.querySelectorAll("td"));
-          const no = cells[0]?.textContent?.trim() || "";
-          const domain = cells[1]?.textContent?.trim() || "";
-          const path = cells[2]?.textContent?.trim() || "";
-          const pre = cells[3]?.textContent?.trim() || "";
-          const step = cells[4]?.textContent?.trim() || "";
-          const check = cells[5]?.textContent?.trim() || "";
-          const expected = cells[6]?.textContent?.trim() || "";
           const result = id ? getResultValueByRowId(id) : "nt";
-          return { no, domain, path, pre, step, check, expected, result };
+          return {
+            no: cells[0]?.textContent?.trim() || "",
+            domain: cells[1]?.textContent?.trim() || "",
+            path: cells[2]?.textContent?.trim() || "",
+            pre: cells[3]?.textContent?.trim() || "",
+            step: cells[4]?.textContent?.trim() || "",
+            check: cells[5]?.textContent?.trim() || "",
+            expected: cells[6]?.textContent?.trim() || "",
+            title: (cells[5]?.textContent?.trim() || "").slice(0, 120),
+            result,
+          };
         });
+      }
 
-        const slices = window.__slices || [];
-        const summaryItems = slices
-          .map((s) => "<li><b>" + s.label + "</b>: " + s.pct + "% (" + s.count + ")</li>")
-          .join("");
+      function getSummarySnapshot(rows) {
+        const source = rows || collectChecklistRows();
+        const counts = { pass: 0, fail: 0, nt: 0, na: 0, block: 0, fixed: 0 };
+        for (const r of source) counts[counts[r.result] === undefined ? "nt" : r.result]++;
+        const total = source.length;
+        const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
+        return [
+          { key: "pass", label: "PASS", pct: pct(counts.pass), count: counts.pass },
+          { key: "fail", label: "FAIL", pct: pct(counts.fail), count: counts.fail },
+          { key: "nt", label: "N/T", pct: pct(counts.nt), count: counts.nt },
+          { key: "na", label: "N/A", pct: pct(counts.na), count: counts.na },
+          { key: "block", label: "BLOCK", pct: pct(counts.block), count: counts.block },
+          { key: "fixed", label: "FIXED", pct: pct(counts.fixed), count: counts.fixed },
+        ];
+      }
 
-        const detailsRows = lines
-          .map((r) => {
-            return (
-              "<tr>" +
-              "<td>" +
-              r.no +
-              "</td>" +
-              "<td>" +
-              r.domain +
-              "</td>" +
-              "<td>" +
-              r.path +
-              "</td>" +
-              "<td>" +
-              r.result.toUpperCase() +
-              "</td>" +
-              "<td>" +
-              r.check +
-              "</td>" +
-              "<td>" +
-              r.expected +
-              "</td>" +
-              "</tr>"
-            );
-          })
-          .join("");
-
-        const initialHtml =
-          "<!doctype html><meta charset=\\\"utf-8\\\"/><title>QA 결과 리포트</title>" +
-          "<style>" +
-          "body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;margin:24px;}" +
-          "h1{margin:0 0 8px 0;}" +
-          ".muted{color:#6b7280;}" +
-          ".card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;}" +
-          "label{display:block;font-size:12px;color:#374151;margin-top:10px;}" +
-          "input,textarea{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px;font-size:12px;}" +
-          "textarea{min-height:90px;}" +
-          ".row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}" +
-          ".btns{display:flex;gap:10px;margin-top:14px;}" +
-          "button{padding:10px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#111827;color:white;cursor:pointer;font-size:12px;}" +
-          "button.secondary{background:white;color:#111827;}" +
-          "table{width:100%;border-collapse:collapse;margin-top:12px;}" +
-          "th,td{border:1px solid #e5e7eb;padding:8px;vertical-align:top;font-size:12px;}" +
-          "th{background:#f9fafb;text-align:left;}" +
-          "@media print{.noPrint{display:none;} body{margin:0;}}" +
-          "</style>" +
-          "<h1>QA 결과 리포트</h1>" +
-          "<div class=\\\"muted\\\">" +
-          new Date().toLocaleString() +
-          "</div>" +
-          "<div class=\\\"card noPrint\\\" style=\\\"margin-top:14px;\\\">" +
-          "<div class=\\\"muted\\\">담당자/기간 등 정보를 입력한 뒤, 완료를 누르면 아래에 리포트가 생성됩니다. 생성 후에는 상단 브라우저의 인쇄 기능 또는 페이지 내 버튼으로 PDF 저장하세요.</div>" +
-          "<div class=\\\"row\\\">" +
-          "<div><label>담당자</label><input id=\\\"r_owner\\\" placeholder=\\\"예: 홍길동\\\"/></div>" +
-          "<div><label>테스트 기간</label><input id=\\\"r_period\\\" placeholder=\\\"예: 2026-04-01 ~ 2026-04-29\\\"/></div>" +
-          "</div>" +
-          "<div class=\\\"row\\\">" +
-          "<div><label>버전/빌드</label><input id=\\\"r_build\\\" placeholder=\\\"예: v1.2.3 (build 456)\\\"/></div>" +
-          "<div><label>환경</label><input id=\\\"r_env\\\" placeholder=\\\"예: Chrome 126 / macOS\\\"/></div>" +
-          "</div>" +
-          "<label>비고</label><textarea id=\\\"r_note\\\" placeholder=\\\"추가 이슈/리스크/특이사항\\\"></textarea>" +
-          "<div class=\\\"btns\\\">" +
-          "<button class=\\\"secondary\\\" onclick=\\\"window.print()\\\">인쇄/저장(PDF)</button>" +
-          "<button onclick=\\\"window.__makeReport && window.__makeReport()\\\">완료(리포트 생성)</button>" +
-          "</div>" +
-          "</div>" +
-          "<div id=\\\"report\\\"></div>" +
-          "<scr" +
-          "ipt>" +
-          "window.__data = { summaryItems: " +
-          JSON.stringify(summaryItems) +
-          ", detailsRows: " +
-          JSON.stringify(detailsRows) +
-          " };" +
-          "window.__makeReport = function(){ " +
-          "var owner=document.getElementById('r_owner').value||'';" +
-          "var period=document.getElementById('r_period').value||'';" +
-          "var build=document.getElementById('r_build').value||'';" +
-          "var env=document.getElementById('r_env').value||'';" +
-          "var note=document.getElementById('r_note').value||'';" +
-          "var html='';" +
-          "html += '<h3>정보</h3><table><tbody>';" +
-          "html += '<tr><th>담당자</th><td>'+owner+'</td><th>기간</th><td>'+period+'</td></tr>';" +
-          "html += '<tr><th>버전/빌드</th><td>'+build+'</td><th>환경</th><td>'+env+'</td></tr>';" +
-          "html += '<tr><th>비고</th><td colspan=\\\"3\\\">'+note.replace(/\\n/g,'<br/>')+'</td></tr>';" +
-          "html += '</tbody></table>';" +
-          "html += '<h3>요약</h3><ul>'+window.__data.summaryItems+'</ul>';" +
-          "html += '<h3>상세</h3><table><thead><tr><th>No</th><th>도메인</th><th>경로</th><th>결과</th><th>체크 항목</th><th>기대 결과</th></tr></thead><tbody>'+window.__data.detailsRows+'</tbody></table>';" +
-          "document.getElementById('report').innerHTML = html;" +
-          "};" +
-          "</scr" +
-          "ipt>";
-
-        // Blob URL로 새 탭에 열기
-        const blob = new Blob([initialHtml], { type: "text/html;charset=utf-8" });
+      function openHtmlInNewTab(html) {
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
         a.target = "_blank";
         a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
         a.click();
+        a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
 
+      function baseDocument(title, body, extraScript) {
+        const script = extraScript ? "<scr" + "ipt>" + extraScript + "</scr" + "ipt>" : "";
+        return (
+          "<!doctype html><html lang=\\"ko\\"><head><meta charset=\\"utf-8\\"/>" +
+          "<meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1\\"/>" +
+          "<title>" + escapeHtml(title) + "</title>" +
+          "<style>" +
+          "body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;margin:24px;color:#111827;}" +
+          "h1{margin:0 0 8px 0;font-size:22px;} h2{margin:24px 0 10px;font-size:16px;} .muted{color:#6b7280;font-size:12px;}" +
+          ".toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px;} button{padding:9px 12px;border-radius:8px;border:1px solid #d1d5db;background:#111827;color:white;cursor:pointer;font-size:12px;} button.secondary{background:white;color:#111827;}" +
+          ".grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;} .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}" +
+          "label{display:block;font-size:12px;color:#374151;margin:0 0 6px;} input,select,textarea{width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:12px;} textarea{min-height:76px;resize:vertical;}" +
+          ".card{border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-top:12px;} table{width:100%;border-collapse:collapse;margin-top:10px;} th,td{border:1px solid #e5e7eb;padding:8px;vertical-align:top;font-size:12px;} th{background:#f9fafb;text-align:left;} ul{margin:8px 0 0 18px;padding:0;}" +
+          "@media print{.noPrint{display:none;} body{margin:0;} .card{break-inside:avoid;}}" +
+          "</style></head><body>" + body + script + "</body></html>"
+        );
+      }
+
+      function buildRowsHtml(rows) {
+        if (!rows.length) return "<tr><td colspan=\\"6\\" class=\\"muted\\">대상 항목이 없습니다.</td></tr>";
+        return rows
+          .map((r) =>
+            "<tr><td>" + escapeHtml(r.no) + "</td><td>" + escapeHtml(r.domain || r.title) + "</td><td>" +
+            escapeHtml(r.path || r.step) + "</td><td>" + escapeHtml(resultLabel(r.result)) + "</td><td>" +
+            escapeHtml(r.check) + "</td><td>" + escapeHtml(r.expected) + "</td></tr>"
+          )
+          .join("");
+      }
+
+      function buildSummaryHtml(summary) {
+        return "<ul>" + summary
+          .map((s) => "<li><b>" + escapeHtml(s.label) + "</b>: " + s.pct + "% (" + s.count + ")</li>")
+          .join("") + "</ul>";
+      }
+
+      function buildQaReportHtml(rows, summary) {
+        const detailsRows = buildRowsHtml(rows);
+        const summaryHtml = buildSummaryHtml(summary);
+        const body =
+          "<div class=\\"toolbar noPrint\\"><button onclick=\\"window.print()\\">인쇄/PDF 저장</button></div>" +
+          "<h1>QA 결과 리포트</h1><div class=\\"muted\\">생성 시각: " + escapeHtml(new Date().toLocaleString()) + "</div>" +
+          "<div class=\\"card\\"><h2>기본정보</h2><div class=\\"grid\\">" +
+          "<div><label>프로젝트명</label><input placeholder=\\"프로젝트명 입력\\"/></div>" +
+          "<div><label>테스트 버전</label><input placeholder=\\"예: v1.0.0\\"/></div>" +
+          "<div><label>테스트 기간 시작</label><input type=\\"date\\"/></div>" +
+          "<div><label>테스트 기간 종료</label><input type=\\"date\\"/></div>" +
+          "<div><label>테스트 담당자</label><input placeholder=\\"담당자 입력\\"/></div>" +
+          "<div><label>테스트 환경</label><select><option>운영</option><option>스테이지</option><option>개발</option></select></div>" +
+          "</div></div>" +
+          "<div class=\\"card\\"><h2>테스트 결과 요약</h2>" + summaryHtml + "</div>" +
+          "<div class=\\"card\\"><h2>테스트 범위</h2><input placeholder=\\"테스트 범위 입력\\"/></div>" +
+          "<div class=\\"card\\"><h2>주요이슈</h2><div class=\\"grid\\">" +
+          "<div><label>발견된 주요이슈</label><textarea></textarea></div><div><label>조치 현황</label><textarea></textarea></div>" +
+          "<div><label>미해결이슈</label><textarea></textarea></div><div><label>릴리즈 영향여부</label><textarea></textarea></div>" +
+          "</div></div>" +
+          "<div class=\\"card\\"><h2>리스크</h2><div class=\\"grid3\\">" +
+          "<div><label>미검증항목</label><textarea></textarea></div><div><label>테스트 제한 사항</label><textarea></textarea></div><div><label>예상리스크</label><textarea></textarea></div>" +
+          "</div></div>" +
+          "<div class=\\"card\\"><h2>최종의견(QA의견)</h2><textarea></textarea></div>" +
+          "<div class=\\"card\\"><h2>상세 결과</h2><table><thead><tr><th>No</th><th>도메인/제목</th><th>경로/단계</th><th>결과</th><th>체크 항목</th><th>기대 결과</th></tr></thead><tbody>" +
+          detailsRows + "</tbody></table></div>";
+        return baseDocument("QA 결과 리포트", body, "");
+      }
+
+      function openQaReport() {
+        const rows = collectChecklistRows();
+        openHtmlInNewTab(buildQaReportHtml(rows, getSummarySnapshot(rows)));
+      }
+
+      function buildRegressionHtml(rows) {
+        const summary = getSummarySnapshot(rows);
+        const reportHtml = buildQaReportHtml(rows, summary);
+        const script =
+          "window.__downloadHtml=function(){var b=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='regression-tc.html';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},0);};" +
+          "window.__openReport=function(){var b=new Blob([" + JSON.stringify(reportHtml) + "],{type:'text/html;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},60000);};";
+        const body =
+          "<div class=\\"toolbar noPrint\\"><button onclick=\\"window.print()\\">인쇄/PDF 저장</button><button class=\\"secondary\\" onclick=\\"window.__downloadHtml&&window.__downloadHtml()\\">HTML 다운로드</button><button onclick=\\"window.__openReport&&window.__openReport()\\">결과 리포트 생성</button></div>" +
+          "<h1>리그레션 TC</h1><div class=\\"muted\\">FAIL, FIXED 기준 " + rows.length + "개 항목</div>" +
+          "<div class=\\"card\\"><h2>테스트 결과 요약</h2>" + buildSummaryHtml(summary) + "</div>" +
+          "<div class=\\"card\\"><table><thead><tr><th>No</th><th>Title</th><th>Steps</th><th>Expected</th><th>LastResult</th></tr></thead><tbody>" +
+          (rows.length
+            ? rows.map((r) => "<tr><td>" + escapeHtml(r.no) + "</td><td>" + escapeHtml(r.title) + "</td><td>" + escapeHtml(r.step) + "</td><td>" + escapeHtml(r.expected) + "</td><td>" + escapeHtml(resultLabel(r.result)) + "</td></tr>").join("")
+            : "<tr><td colspan=\\"5\\" class=\\"muted\\">FAIL 또는 FIXED 항목이 없습니다.</td></tr>") +
+          "</tbody></table></div>";
+        return baseDocument("리그레션 TC", body, script);
+      }
+
       function downloadRegressionTc() {
-        const rows = Array.from(document.querySelectorAll("tbody tr[data-row-id]"));
-        const lines = rows.map((tr) => {
-          const id = tr.getAttribute("data-row-id");
-          const cells = Array.from(tr.querySelectorAll("td"));
-          const no = cells[0]?.textContent?.trim() || "";
-          const title = (cells[5]?.textContent?.trim() || "").slice(0, 120);
-          const step = cells[4]?.textContent?.trim() || "";
-          const expected = cells[6]?.textContent?.trim() || "";
-          const result = id ? getResultValueByRowId(id) : "nt";
-          return { no, title, step, expected, result };
+        const rows = collectChecklistRows().filter((r) => r.result === "fail" || r.result === "fixed");
+        openHtmlInNewTab(buildRegressionHtml(rows));
+      }
+
+      function getCurrentHtmlSnapshot() {
+        updateSummary();
+        const clone = document.documentElement.cloneNode(true);
+        const sourceSelects = Array.from(document.querySelectorAll("select.select"));
+        const cloneSelects = Array.from(clone.querySelectorAll("select.select"));
+        cloneSelects.forEach((select, index) => {
+          const value = sourceSelects[index]?.value || "nt";
+          select.setAttribute("value", value);
+          Array.from(select.options).forEach((option) => {
+            if (option.value === value) option.setAttribute("selected", "selected");
+            else option.removeAttribute("selected");
+          });
         });
-
-        const csv = [
-          ["No", "Title", "Steps", "Expected", "LastResult"].join(","),
-          ...lines.map((r) =>
-            [r.no, r.title, r.step, r.expected, r.result.toUpperCase()]
-              .map((v) => "\\\"" + String(v).replaceAll("\\\"", "\\\"\\\"") + "\\\"")
-              .join(",")
-          ),
-        ].join("\\n");
-
-        downloadTextFile("regression-tc.csv", csv, "text/csv;charset=utf-8");
+        return "<!doctype html>\\n" + clone.outerHTML;
       }
 
       function downloadHtml() {
-        const blob = new Blob([document.documentElement.outerHTML], { type: "text/html;charset=utf-8" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "checklist.html";
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          URL.revokeObjectURL(a.href);
-          a.remove();
-        }, 0);
+        downloadTextFile("checklist.html", getCurrentHtmlSnapshot(), "text/html;charset=utf-8");
       }
 
       // onclick attribute에서 안정적으로 접근하도록 window에 바인딩
