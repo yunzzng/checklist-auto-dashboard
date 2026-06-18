@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Payload =
@@ -20,6 +20,29 @@ function safeParse(raw: string | null): Payload | null {
   } catch {
     return null;
   }
+}
+
+function ChecklistFrame({ html }: { html: string }) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(html);
+    doc.close();
+  }, [html]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      title="Checklist"
+      className="h-screen w-screen border-0"
+      sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox allow-modals"
+    />
+  );
 }
 
 export default function PopupClient() {
@@ -83,7 +106,7 @@ export default function PopupClient() {
   }
 
   if (payload.status === "ready") {
-    return <iframe title="Checklist" className="h-screen w-screen border-0" srcDoc={payload.html} />;
+    return <ChecklistFrame html={payload.html} />;
   }
 
   return (
@@ -100,4 +123,3 @@ export default function PopupClient() {
     </div>
   );
 }
-

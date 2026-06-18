@@ -35,7 +35,9 @@ export function checklistRowsToHtml(params: {
   const rowsHtml = rows
     .map((r, idx) => {
       const id = `row_${idx}`;
-      const select = `<select class="select" data-row-id="${escape(id)}">
+      const select = `<select class="select" data-row-id="${escape(
+        id
+      )}" onchange="window.handleResultChange && window.handleResultChange(this)" oninput="window.handleResultChange && window.handleResultChange(this)">
   <option value="nt">N/T</option>
   <option value="pass">PASS</option>
   <option value="fail">FAIL</option>
@@ -480,6 +482,16 @@ export function checklistRowsToHtml(params: {
         else tr.classList.add("nt");
       }
 
+      function handleResultChange(selectEl) {
+        const id = selectEl.getAttribute("data-row-id");
+        const next = readState();
+        if (id) next[id] = selectEl.value || "nt";
+        writeState(next);
+        applyResultStyles(selectEl);
+        updateSummary();
+      }
+      window.handleResultChange = handleResultChange;
+
       function initResults(attempt) {
         const tries = typeof attempt === "number" ? attempt : 0;
         const selects = Array.from(document.querySelectorAll("select.select"));
@@ -497,13 +509,7 @@ export function checklistRowsToHtml(params: {
           const saved = id && typeof state[id] === "string" ? state[id] : "";
           s.value = saved || "nt";
           applyResultStyles(s);
-          const onChange = () => {
-            const next = readState();
-            if (id) next[id] = s.value || "nt";
-            writeState(next);
-            applyResultStyles(s);
-            updateSummary();
-          };
+          const onChange = () => handleResultChange(s);
           s.addEventListener("change", onChange);
           s.addEventListener("input", onChange);
         }
@@ -761,4 +767,3 @@ export function checklistRowsToHtml(params: {
   </body>
 </html>`;
 }
-
