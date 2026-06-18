@@ -676,7 +676,7 @@ export function checklistRowsToHtml(params: {
           "h1{margin:0;font-size:20px;} h2{margin:0 0 12px;font-size:15px;} .muted{color:rgba(255,255,255,.62);font-size:12px;}" +
           ".toolbar{display:flex;gap:10px;flex-wrap:wrap;} button{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92);cursor:pointer;font-size:12px;} button.primary{background:#6d28d9;border-color:rgba(255,255,255,.14);} button:hover{border-color:rgba(255,255,255,.28);}" +
           ".grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;} .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}" +
-          "label{display:block;font-size:12px;color:rgba(255,255,255,.74);margin:0 0 6px;} input,select,textarea{width:100%;padding:10px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(0,0,0,.25);color:rgba(255,255,255,.92);font-size:12px;outline:none;} textarea{min-height:86px;resize:vertical;} select option{color:#111827;}" +
+          "label{display:block;font-size:12px;color:rgba(255,255,255,.74);margin:0 0 6px;} input,select,textarea{width:100%;padding:10px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(0,0,0,.25);color:rgba(255,255,255,.92);font-size:12px;outline:none;} select{padding-right:34px;} input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.78;cursor:pointer;} textarea{min-height:86px;resize:vertical;} select option{color:#111827;} input.error,select.error,textarea.error{border-color:rgba(248,113,113,.95);box-shadow:0 0 0 1px rgba(248,113,113,.35);} .fieldError{margin-top:6px;color:#fecaca;font-size:11px;}" +
           ".card{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.04);padding:16px;margin-top:18px;} table{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed;} th,td{border-bottom:1px solid rgba(255,255,255,.10);border-right:1px solid rgba(255,255,255,.10);padding:10px;vertical-align:top;font-size:13px;line-height:1.4;white-space:pre-wrap;word-break:break-word;} th:last-child,td:last-child{border-right:none;} th{background:rgba(15,23,42,.88);text-align:left;color:rgba(255,255,255,.78);font-size:12px;text-transform:uppercase;} ul{margin:8px 0 0 18px;padding:0;} li{margin:6px 0;}" +
           ".summaryLayout{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:28px;align-items:center;}.summaryDonut{width:300px;max-width:100%;aspect-ratio:1;border-radius:999px;border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);} .summaryGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;} .summaryItem{border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:10px;background:rgba(0,0,0,.18);} .summaryItem b{font-size:16px;} .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle;}.pass{background:#22c55e}.fail{background:#f43f5e}.nt{background:#94a3b8}.na{background:#60a5fa}.block{background:#facc15}.fixed{background:#a78bfa}" +
           "@media(max-width:800px){.wrap{padding:28px 18px;}.grid,.grid3,.summaryGrid,.summaryLayout{grid-template-columns:1fr;}.summaryDonut{width:240px;margin:0 auto;}}" +
@@ -733,38 +733,41 @@ export function checklistRowsToHtml(params: {
         );
       }
 
-      function buildReportListHtml() {
+      function buildReportListHtml(key, title, emptyText) {
         const script =
           currentPageOpenScript() +
-          "var KEY='checklist_auto:qa_reports';" +
+          "var KEY='" + key + "';" +
           "function readReports(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}}" +
-          "function render(){var rows=readReports();var el=document.getElementById('reportRows');if(!el)return;el.innerHTML=rows.length?rows.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td><button class=\\"linkBtn\\" onclick=\\"window.__openSavedReport(\\\\\\''+r.id+'\\\\\\')\\">'+(r.title||'QA 결과 리포트')+'</button></td><td>'+(r.createdAt||'')+'</td></tr>';}).join(''):'<tr><td colspan=\\"3\\" class=\\"muted\\">저장된 리포트가 없습니다.</td></tr>';}" +
+          "function render(){var rows=readReports();var el=document.getElementById('reportRows');if(!el)return;el.innerHTML=rows.length?rows.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td>'+(r.project||'-')+'</td><td><button class=\\"linkBtn\\" onclick=\\"window.__openSavedReport(\\\\\\''+r.id+'\\\\\\')\\">'+(r.title||'결과 리포트')+'</button></td><td>'+(r.createdAt||'')+'</td></tr>';}).join(''):'<tr><td colspan=\\"4\\" class=\\"muted\\">" + emptyText + "</td></tr>';}" +
           "window.__openSavedReport=function(id){var found=readReports().find(function(r){return r.id===id});if(found&&found.html)__openBlobHtml(found.html);};" +
           "render();";
         const body =
-          "<div class=\\"top\\"><div><h1>결과 리포트 리스트</h1><div class=\\"muted\\">이 브라우저에 저장된 QA 결과 리포트</div></div>" +
+          "<div class=\\"top\\"><div><h1>" + title + "</h1><div class=\\"muted\\">이 브라우저에 저장된 결과 리포트</div></div>" +
           "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button></div></div>" +
-          "<div class=\\"card\\"><table><thead><tr><th>No</th><th>리포트</th><th>저장 시각</th></tr></thead><tbody id=\\"reportRows\\"></tbody></table></div>";
-        return baseDocument("결과 리포트 리스트", body, script);
+          "<div class=\\"card\\"><table><thead><tr><th>No</th><th>프로젝트명</th><th>리포트</th><th>저장 시각</th></tr></thead><tbody id=\\"reportRows\\"></tbody></table></div>";
+        return baseDocument(title, body, script);
       }
 
       function buildQaReportHtml(rows, summary) {
         const summaryHtml = buildSummaryChartHtml(summary);
-        const listHtml = buildReportListHtml();
+        const listHtml = buildReportListHtml("checklist_auto:qa_reports", "QA 결과 리포트 목록", "저장된 QA 결과 리포트가 없습니다.");
         const script =
           currentPageOpenScript() +
           "var REPORT_LIST_HTML=" + scriptLiteral(listHtml) + ";" +
-          "window.__saveReport=function(){var project=document.getElementById('reportProject')&&document.getElementById('reportProject').value;var item={id:String(Date.now()),title:project||document.title,createdAt:new Date().toLocaleString(),html:__readonlySnapshotHtml()};var key='checklist_auto:qa_reports';var list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}list.unshift(item);localStorage.setItem(key,JSON.stringify(list));__openBlobHtml(REPORT_LIST_HTML);};";
+          "function __setErr(el,msg){if(!el)return;el.classList.add('error');var n=el.parentNode.querySelector('.fieldError');if(!n){n=document.createElement('div');n.className='fieldError';el.parentNode.appendChild(n);}n.textContent=msg;}" +
+          "function __clearErr(el){if(!el)return;el.classList.remove('error');var n=el.parentNode.querySelector('.fieldError');if(n)n.remove();}" +
+          "function __validateRequired(){var ids=['reportProject','reportVersion','reportStart','reportEnd','reportOwner','reportEnv'];var ok=true;ids.forEach(function(id){var el=document.getElementById(id);__clearErr(el);if(!el||!String(el.value||'').trim()){__setErr(el,'필수값입니다.');ok=false;}});return ok;}" +
+          "window.__saveReport=function(){if(!__validateRequired())return;var project=document.getElementById('reportProject').value;var item={id:String(Date.now()),project:project,title:project+' QA 결과 리포트',createdAt:new Date().toLocaleString(),html:__readonlySnapshotHtml()};var key='checklist_auto:qa_reports';var list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}list.unshift(item);localStorage.setItem(key,JSON.stringify(list));__openBlobHtml(REPORT_LIST_HTML);};";
         const body =
           "<div class=\\"top\\"><div><h1>QA 결과 리포트</h1><div class=\\"muted\\">생성 시각: " + escapeHtml(new Date().toLocaleString()) + "</div></div>" +
           "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__downloadCurrentHtml&&window.__downloadCurrentHtml('qa-report.html')\\">HTML 다운로드</button><button onclick=\\"window.__saveReport&&window.__saveReport()\\">저장</button></div></div>" +
           "<div class=\\"card\\"><h2>기본정보</h2><div class=\\"grid\\">" +
           "<div><label>프로젝트명</label><input id=\\"reportProject\\" placeholder=\\"프로젝트명 입력\\"/></div>" +
-          "<div><label>테스트 버전</label><input placeholder=\\"예: v1.0.0\\"/></div>" +
-          "<div><label>테스트 기간 시작</label><input type=\\"date\\" onclick=\\"this.showPicker&&this.showPicker()\\"/></div>" +
-          "<div><label>테스트 기간 종료</label><input type=\\"date\\" onclick=\\"this.showPicker&&this.showPicker()\\"/></div>" +
-          "<div><label>테스트 담당자</label><input placeholder=\\"담당자 입력\\"/></div>" +
-          "<div><label>테스트 환경</label><select><option>운영</option><option>스테이지</option><option>개발</option></select></div>" +
+          "<div><label>테스트 버전</label><input id=\\"reportVersion\\" placeholder=\\"예: v1.0.0\\"/></div>" +
+          "<div><label>테스트 기간 시작</label><input id=\\"reportStart\\" type=\\"date\\" onclick=\\"this.showPicker&&this.showPicker()\\"/></div>" +
+          "<div><label>테스트 기간 종료</label><input id=\\"reportEnd\\" type=\\"date\\" onclick=\\"this.showPicker&&this.showPicker()\\"/></div>" +
+          "<div><label>테스트 담당자</label><input id=\\"reportOwner\\" placeholder=\\"담당자 입력\\"/></div>" +
+          "<div><label>테스트 환경</label><select id=\\"reportEnv\\"><option value=\\"\\">선택</option><option>운영</option><option>스테이지</option><option>개발</option></select></div>" +
           "</div></div>" +
           "<div class=\\"card\\"><h2>테스트 결과 요약</h2>" + summaryHtml + "</div>" +
           "<div class=\\"card\\"><h2>테스트 범위</h2><input placeholder=\\"테스트 범위 입력\\"/></div>" +
@@ -788,6 +791,23 @@ export function checklistRowsToHtml(params: {
         const showReportButton = includeReportButton !== false;
         const initialRows = rows.map((r) => ({ ...r, result: "nt" }));
         const initialSummary = getSummarySnapshot(initialRows);
+        const regressionListHtml = buildReportListHtml(
+          "checklist_auto:regression_reports",
+          "리그레션 결과 리포트 목록",
+          "저장된 리그레션 결과 리포트가 없습니다."
+        );
+        const regressionReportShell = baseDocument(
+          "리그레션 TC 결과 리포트",
+          "__BODY__",
+          currentPageOpenScript() +
+            "var REPORT_LIST_HTML=" +
+            scriptLiteral(regressionListHtml) +
+            ";" +
+            "function __setErr(el,msg){if(!el)return;el.classList.add('error');var n=el.parentNode.querySelector('.fieldError');if(!n){n=document.createElement('div');n.className='fieldError';el.parentNode.appendChild(n);}n.textContent=msg;}" +
+            "function __clearErr(el){if(!el)return;el.classList.remove('error');var n=el.parentNode.querySelector('.fieldError');if(n)n.remove();}" +
+            "function __validateRequired(){var ids=['reportProject','reportVersion','reportStart','reportEnd','reportOwner','reportEnv'];var ok=true;ids.forEach(function(id){var el=document.getElementById(id);__clearErr(el);if(!el||!String(el.value||'').trim()){__setErr(el,'필수값입니다.');ok=false;}});return ok;}" +
+            "window.__saveReport=function(){if(!__validateRequired())return;var project=document.getElementById('reportProject').value;var item={id:String(Date.now()),project:project,title:project+' 리그레션 결과 리포트',createdAt:new Date().toLocaleString(),html:__readonlySnapshotHtml()};var key='checklist_auto:regression_reports';var list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}list.unshift(item);localStorage.setItem(key,JSON.stringify(list));__openBlobHtml(REPORT_LIST_HTML);};"
+        );
         const script =
           currentPageOpenScript() +
           "function __label(v){return({pass:'PASS',fail:'FAIL',nt:'N/T',na:'N/A',block:'BLOCK',fixed:'FIXED'}[v]||String(v||'nt').toUpperCase());}" +
@@ -797,7 +817,7 @@ export function checklistRowsToHtml(params: {
           "window.__updateRegressionSummary=function(){var el=document.getElementById('regressionSummary');if(el)el.innerHTML=__summaryHtml(__summary(__rows()));};" +
           "document.addEventListener('change',function(e){if(e.target&&e.target.classList&&e.target.classList.contains('regression-result'))window.__updateRegressionSummary();});window.__updateRegressionSummary();" +
           (showReportButton
-            ? "window.__openReport=function(){var rows=__rows();var summary=__summary(rows);var body='<div class=\\"top\\"><div><h1>리그레션 TC 결과 리포트</h1><div class=\\"muted\\">생성 시각: '+new Date().toLocaleString()+'</div></div><div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__downloadCurrentHtml&&window.__downloadCurrentHtml(\\\\\\'regression-report.html\\\\\\')\\">HTML 다운로드</button></div></div><div class=\\"card\\"><h2>기본정보</h2><div class=\\"grid\\"><div><label>프로젝트명</label><input placeholder=\\"프로젝트명 입력\\"/></div><div><label>테스트 버전</label><input placeholder=\\"예: v1.0.0\\"/></div><div><label>테스트 기간 시작</label><input type=\\"date\\" onclick=\\"this.showPicker&&this.showPicker()\\"/></div><div><label>테스트 기간 종료</label><input type=\\"date\\" onclick=\\"this.showPicker&&this.showPicker()\\"/></div><div><label>테스트 담당자</label><input placeholder=\\"담당자 입력\\"/></div><div><label>테스트 환경</label><select><option>운영</option><option>스테이지</option><option>개발</option></select></div></div></div><div class=\\"card\\"><h2>테스트 결과 요약</h2>'+__summaryHtml(summary)+'</div><div class=\\"card\\"><h2>테스트 범위</h2><input placeholder=\\"테스트 범위 입력\\"/></div><div class=\\"card\\"><h2>주요이슈</h2><div class=\\"grid\\"><div><label>발견된 주요이슈</label><textarea></textarea></div><div><label>조치 현황</label><textarea></textarea></div><div><label>미해결이슈</label><textarea></textarea></div><div><label>릴리즈 영향여부</label><textarea></textarea></div></div></div><div class=\\"card\\"><h2>리스크</h2><div class=\\"grid3\\"><div><label>미검증항목</label><textarea></textarea></div><div><label>테스트 제한 사항</label><textarea></textarea></div><div><label>예상리스크</label><textarea></textarea></div></div></div><div class=\\"card\\"><h2>최종의견(QA의견)</h2><textarea></textarea></div>';__openBlobHtml(" + scriptLiteral(baseDocument("리그레션 TC 결과 리포트", "__BODY__", currentPageOpenScript())) + ".replace('__BODY__',body));};"
+            ? "window.__openReport=function(){var rows=__rows();var summary=__summary(rows);var body='<div class=\\"top\\"><div><h1>리그레션 TC 결과 리포트</h1><div class=\\"muted\\">생성 시각: '+new Date().toLocaleString()+'</div></div><div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__downloadCurrentHtml&&window.__downloadCurrentHtml(\\\\\\'regression-report.html\\\\\\')\\">HTML 다운로드</button><button onclick=\\"window.__saveReport&&window.__saveReport()\\">저장</button></div></div><div class=\\"card\\"><h2>기본정보</h2><div class=\\"grid\\"><div><label>프로젝트명</label><input id=\\"reportProject\\" placeholder=\\"프로젝트명 입력\\"/></div><div><label>테스트 버전</label><input id=\\"reportVersion\\" placeholder=\\"예: v1.0.0\\"/></div><div><label>테스트 기간 시작</label><input id=\\"reportStart\\" type=\\"date\\" onclick=\\"this.showPicker&&this.showPicker()\\"/></div><div><label>테스트 기간 종료</label><input id=\\"reportEnd\\" type=\\"date\\" onclick=\\"this.showPicker&&this.showPicker()\\"/></div><div><label>테스트 담당자</label><input id=\\"reportOwner\\" placeholder=\\"담당자 입력\\"/></div><div><label>테스트 환경</label><select id=\\"reportEnv\\"><option value=\\"\\">선택</option><option>운영</option><option>스테이지</option><option>개발</option></select></div></div></div><div class=\\"card\\"><h2>테스트 결과 요약</h2>'+__summaryHtml(summary)+'</div><div class=\\"card\\"><h2>테스트 범위</h2><input placeholder=\\"테스트 범위 입력\\"/></div><div class=\\"card\\"><h2>주요이슈</h2><div class=\\"grid\\"><div><label>발견된 주요이슈</label><textarea></textarea></div><div><label>조치 현황</label><textarea></textarea></div><div><label>미해결이슈</label><textarea></textarea></div><div><label>릴리즈 영향여부</label><textarea></textarea></div></div></div><div class=\\"card\\"><h2>리스크</h2><div class=\\"grid3\\"><div><label>미검증항목</label><textarea></textarea></div><div><label>테스트 제한 사항</label><textarea></textarea></div><div><label>예상리스크</label><textarea></textarea></div></div></div><div class=\\"card\\"><h2>최종의견(QA의견)</h2><textarea></textarea></div>';__openBlobHtml(" + scriptLiteral(regressionReportShell) + ".replace('__BODY__',body));};"
             : "");
         const body =
           "<div class=\\"top\\"><div><h1>리그레션 TC</h1><div class=\\"muted\\">AI 중요도 기준 " + rows.length + "개 항목</div></div>" +

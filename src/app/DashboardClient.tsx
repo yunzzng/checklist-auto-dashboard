@@ -185,6 +185,32 @@ export default function DashboardClient() {
     }
   }
 
+  function openSavedReportList(kind: "qa" | "regression") {
+    const key = kind === "qa" ? "checklist_auto:qa_reports" : "checklist_auto:regression_reports";
+    const title = kind === "qa" ? "QA 결과 리포트 목록" : "리그레션 결과 리포트 목록";
+    const empty = kind === "qa" ? "저장된 QA 결과 리포트가 없습니다." : "저장된 리그레션 결과 리포트가 없습니다.";
+    const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${title}</title><style>
+*{box-sizing:border-box}body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;margin:0;background:linear-gradient(to bottom,#000,#020617,#000);color:rgba(255,255,255,.92)}.wrap{padding:50px 100px}.top{display:flex;gap:12px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px}h1{margin:0;font-size:20px}.muted{color:rgba(255,255,255,.62);font-size:12px}.card{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.04);padding:16px;margin-top:18px}button{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92);cursor:pointer;font-size:12px}button.primary{background:#6d28d9}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border-bottom:1px solid rgba(255,255,255,.10);border-right:1px solid rgba(255,255,255,.10);padding:10px;vertical-align:top;font-size:13px;word-break:break-word}th{background:rgba(15,23,42,.88);text-align:left;color:rgba(255,255,255,.78);font-size:12px;text-transform:uppercase}@media(max-width:800px){.wrap{padding:28px 18px}}@media print{.noPrint{display:none}body{background:white;color:black}.wrap{padding:0}.card{background:white;border-color:#e5e7eb}th{background:#f3f4f6;color:#111827}td,th{border-color:#e5e7eb}.muted{color:#374151}}
+</style></head><body><div class="wrap"><div class="top"><div><h1>${title}</h1><div class="muted">이 브라우저에 저장된 결과 리포트</div></div><div class="noPrint"><button class="primary" onclick="window.print()">인쇄/PDF 저장</button></div></div><div class="card"><table><thead><tr><th>No</th><th>프로젝트명</th><th>리포트</th><th>저장 시각</th></tr></thead><tbody id="reportRows"></tbody></table></div></div><script>
+var KEY=${JSON.stringify(key)};
+function openBlobHtml(html){var b=new Blob([html],{type:'text/html;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},60000)}
+function readReports(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}}
+window.openSavedReport=function(id){var found=readReports().find(function(r){return r.id===id});if(found&&found.html)openBlobHtml(found.html)}
+function render(){var rows=readReports();var el=document.getElementById('reportRows');el.innerHTML=rows.length?rows.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td>'+(r.project||'-')+'</td><td><button onclick="openSavedReport(\\''+r.id+'\\')">'+(r.title||'결과 리포트')+'</button></td><td>'+(r.createdAt||'')+'</td></tr>'}).join(''):'<tr><td colspan="4" class="muted">${empty}</td></tr>'}
+render();
+<\/script></body></html>`;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
   return (
     <div className="mt-8">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -317,6 +343,20 @@ export default function DashboardClient() {
               >
                 {busy ? "생성 중..." : "체크리스트 생성 (새 창)"}
               </button>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white hover:bg-white/10"
+                onClick={() => openSavedReportList("qa")}
+              >
+                QA 결과 리포트 목록
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white hover:bg-white/10"
+                onClick={() => openSavedReportList("regression")}
+              >
+                리그레션 저장 목록
+              </button>
 
               {busy ? (
                 <div className="flex items-center gap-3">
@@ -348,4 +388,3 @@ export default function DashboardClient() {
     </div>
   );
 }
-
