@@ -647,7 +647,7 @@ export function checklistRowsToHtml(params: {
           .join("");
 
         const initialHtml =
-          "<!doctype html><meta charset=\"utf-8\"/><title>QA 결과 리포트</title>" +
+          "<!doctype html><meta charset=\\\"utf-8\\\"/><title>QA 결과 리포트</title>" +
           "<style>" +
           "body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;margin:24px;}" +
           "h1{margin:0 0 8px 0;}" +
@@ -666,27 +666,28 @@ export function checklistRowsToHtml(params: {
           "@media print{.noPrint{display:none;} body{margin:0;}}" +
           "</style>" +
           "<h1>QA 결과 리포트</h1>" +
-          "<div class=\"muted\">" +
+          "<div class=\\\"muted\\\">" +
           new Date().toLocaleString() +
           "</div>" +
-          "<div class=\"card noPrint\" style=\"margin-top:14px;\">" +
-          "<div class=\"muted\">담당자/기간 등 정보를 입력한 뒤, 완료를 누르면 아래에 리포트가 생성됩니다. 생성 후에는 상단 브라우저의 인쇄 기능 또는 페이지 내 버튼으로 PDF 저장하세요.</div>" +
-          "<div class=\"row\">" +
-          "<div><label>담당자</label><input id=\"r_owner\" placeholder=\"예: 홍길동\"/></div>" +
-          "<div><label>테스트 기간</label><input id=\"r_period\" placeholder=\"예: 2026-04-01 ~ 2026-04-29\"/></div>" +
+          "<div class=\\\"card noPrint\\\" style=\\\"margin-top:14px;\\\">" +
+          "<div class=\\\"muted\\\">담당자/기간 등 정보를 입력한 뒤, 완료를 누르면 아래에 리포트가 생성됩니다. 생성 후에는 상단 브라우저의 인쇄 기능 또는 페이지 내 버튼으로 PDF 저장하세요.</div>" +
+          "<div class=\\\"row\\\">" +
+          "<div><label>담당자</label><input id=\\\"r_owner\\\" placeholder=\\\"예: 홍길동\\\"/></div>" +
+          "<div><label>테스트 기간</label><input id=\\\"r_period\\\" placeholder=\\\"예: 2026-04-01 ~ 2026-04-29\\\"/></div>" +
           "</div>" +
-          "<div class=\"row\">" +
-          "<div><label>버전/빌드</label><input id=\"r_build\" placeholder=\"예: v1.2.3 (build 456)\"/></div>" +
-          "<div><label>환경</label><input id=\"r_env\" placeholder=\"예: Chrome 126 / macOS\"/></div>" +
+          "<div class=\\\"row\\\">" +
+          "<div><label>버전/빌드</label><input id=\\\"r_build\\\" placeholder=\\\"예: v1.2.3 (build 456)\\\"/></div>" +
+          "<div><label>환경</label><input id=\\\"r_env\\\" placeholder=\\\"예: Chrome 126 / macOS\\\"/></div>" +
           "</div>" +
-          "<label>비고</label><textarea id=\"r_note\" placeholder=\"추가 이슈/리스크/특이사항\"></textarea>" +
-          "<div class=\"btns\">" +
-          "<button class=\"secondary\" onclick=\"window.print()\">인쇄/저장(PDF)</button>" +
-          "<button onclick=\"window.__makeReport && window.__makeReport()\">완료(리포트 생성)</button>" +
+          "<label>비고</label><textarea id=\\\"r_note\\\" placeholder=\\\"추가 이슈/리스크/특이사항\\\"></textarea>" +
+          "<div class=\\\"btns\\\">" +
+          "<button class=\\\"secondary\\\" onclick=\\\"window.print()\\\">인쇄/저장(PDF)</button>" +
+          "<button onclick=\\\"window.__makeReport && window.__makeReport()\\\">완료(리포트 생성)</button>" +
           "</div>" +
           "</div>" +
-          "<div id=\"report\"></div>" +
-          "<script>" +
+          "<div id=\\\"report\\\"></div>" +
+          "<scr" +
+          "ipt>" +
           "window.__data = { summaryItems: " +
           JSON.stringify(summaryItems) +
           ", detailsRows: " +
@@ -702,13 +703,14 @@ export function checklistRowsToHtml(params: {
           "html += '<h3>정보</h3><table><tbody>';" +
           "html += '<tr><th>담당자</th><td>'+owner+'</td><th>기간</th><td>'+period+'</td></tr>';" +
           "html += '<tr><th>버전/빌드</th><td>'+build+'</td><th>환경</th><td>'+env+'</td></tr>';" +
-          "html += '<tr><th>비고</th><td colspan=\"3\">'+note.replace(/\\n/g,'<br/>')+'</td></tr>';" +
+          "html += '<tr><th>비고</th><td colspan=\\\"3\\\">'+note.replace(/\\n/g,'<br/>')+'</td></tr>';" +
           "html += '</tbody></table>';" +
           "html += '<h3>요약</h3><ul>'+window.__data.summaryItems+'</ul>';" +
           "html += '<h3>상세</h3><table><thead><tr><th>No</th><th>도메인</th><th>경로</th><th>결과</th><th>체크 항목</th><th>기대 결과</th></tr></thead><tbody>'+window.__data.detailsRows+'</tbody></table>';" +
           "document.getElementById('report').innerHTML = html;" +
           "};" +
-          "<\\/script>";
+          "</scr" +
+          "ipt>";
 
         // Blob URL로 새 탭에 열기
         const blob = new Blob([initialHtml], { type: "text/html;charset=utf-8" });
@@ -738,10 +740,10 @@ export function checklistRowsToHtml(params: {
           ["No", "Title", "Steps", "Expected", "LastResult"].join(","),
           ...lines.map((r) =>
             [r.no, r.title, r.step, r.expected, r.result.toUpperCase()]
-              .map((v) => "\"" + String(v).replaceAll("\"", "\"\"") + "\"")
+              .map((v) => "\\\"" + String(v).replaceAll("\\\"", "\\\"\\\"") + "\\\"")
               .join(",")
           ),
-        ].join("\n");
+        ].join("\\n");
 
         downloadTextFile("regression-tc.csv", csv, "text/csv;charset=utf-8");
       }
