@@ -660,6 +660,10 @@ export function checklistRowsToHtml(params: {
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
 
+      function scriptLiteral(v) {
+        return JSON.stringify(String(v)).replaceAll("</script", "<\\\\/script");
+      }
+
       function baseDocument(title, body, extraScript) {
         const script = extraScript ? "<scr" + "ipt>" + extraScript + "</scr" + "ipt>" : "";
         return (
@@ -722,7 +726,9 @@ export function checklistRowsToHtml(params: {
         return (
           "function __openBlobHtml(html){var b=new Blob([html],{type:'text/html;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},60000);}" +
           "function __downloadBlobHtml(filename,html){var b=new Blob([html],{type:'text/html;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},0);}" +
-          "window.__openCurrentHtml=function(){var c=document.documentElement.cloneNode(true);var si=document.querySelectorAll('input,textarea,select');var ci=c.querySelectorAll('input,textarea,select');for(var i=0;i<ci.length;i++){var s=si[i];var d=ci[i];if(!s||!d)continue;if(d.tagName==='TEXTAREA'){d.textContent=s.value||'';}else if(d.tagName==='SELECT'){Array.prototype.forEach.call(d.options,function(o){if(o.value===s.value)o.setAttribute('selected','selected');else o.removeAttribute('selected');});}else{d.setAttribute('value',s.value||'');}}__openBlobHtml('<!doctype html>\\\\n'+c.outerHTML);};"
+          "function __snapshotHtml(){var c=document.documentElement.cloneNode(true);var si=document.querySelectorAll('input,textarea,select');var ci=c.querySelectorAll('input,textarea,select');for(var i=0;i<ci.length;i++){var s=si[i];var d=ci[i];if(!s||!d)continue;if(d.tagName==='TEXTAREA'){d.textContent=s.value||'';}else if(d.tagName==='SELECT'){Array.prototype.forEach.call(d.options,function(o){if(o.value===s.value)o.setAttribute('selected','selected');else o.removeAttribute('selected');});}else{d.setAttribute('value',s.value||'');}}return '<!doctype html>\\\\n'+c.outerHTML;}" +
+          "window.__openCurrentHtml=function(){__openBlobHtml(__snapshotHtml());};" +
+          "window.__downloadCurrentHtml=function(filename){__downloadBlobHtml(filename||'document.html',__snapshotHtml());};"
         );
       }
 
@@ -746,11 +752,11 @@ export function checklistRowsToHtml(params: {
         const listHtml = buildReportListHtml();
         const script =
           currentPageOpenScript() +
-          "var REPORT_LIST_HTML=" + JSON.stringify(listHtml) + ";" +
-          "window.__saveReport=function(){var c=document.documentElement.cloneNode(true);var si=document.querySelectorAll('input,textarea,select');var ci=c.querySelectorAll('input,textarea,select');for(var i=0;i<ci.length;i++){var s=si[i];var d=ci[i];if(!s||!d)continue;if(d.tagName==='TEXTAREA'){d.textContent=s.value||'';}else if(d.tagName==='SELECT'){Array.prototype.forEach.call(d.options,function(o){if(o.value===s.value)o.setAttribute('selected','selected');else o.removeAttribute('selected');});}else{d.setAttribute('value',s.value||'');}}var project=document.getElementById('reportProject')&&document.getElementById('reportProject').value;var item={id:String(Date.now()),title:project||document.title,createdAt:new Date().toLocaleString(),html:'<!doctype html>\\\\n'+c.outerHTML};var key='checklist_auto:qa_reports';var list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}list.unshift(item);localStorage.setItem(key,JSON.stringify(list));document.open();document.write(REPORT_LIST_HTML);document.close();};";
+          "var REPORT_LIST_HTML=" + scriptLiteral(listHtml) + ";" +
+          "window.__saveReport=function(){var project=document.getElementById('reportProject')&&document.getElementById('reportProject').value;var item={id:String(Date.now()),title:project||document.title,createdAt:new Date().toLocaleString(),html:__snapshotHtml()};var key='checklist_auto:qa_reports';var list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}list.unshift(item);localStorage.setItem(key,JSON.stringify(list));document.open();document.write(REPORT_LIST_HTML);document.close();};";
         const body =
           "<div class=\\"top\\"><div><h1>QA 결과 리포트</h1><div class=\\"muted\\">생성 시각: " + escapeHtml(new Date().toLocaleString()) + "</div></div>" +
-          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"__downloadBlobHtml('qa-report.html','<!doctype html>\\\\n'+document.documentElement.outerHTML)\\">HTML 다운로드</button><button onclick=\\"window.__saveReport&&window.__saveReport()\\">저장</button></div></div>" +
+          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__downloadCurrentHtml&&window.__downloadCurrentHtml('qa-report.html')\\">HTML 다운로드</button><button onclick=\\"window.__saveReport&&window.__saveReport()\\">저장</button></div></div>" +
           "<div class=\\"card\\"><h2>기본정보</h2><div class=\\"grid\\">" +
           "<div><label>프로젝트명</label><input id=\\"reportProject\\" placeholder=\\"프로젝트명 입력\\"/></div>" +
           "<div><label>테스트 버전</label><input placeholder=\\"예: v1.0.0\\"/></div>" +
@@ -790,11 +796,11 @@ export function checklistRowsToHtml(params: {
           "window.__updateRegressionSummary=function(){var el=document.getElementById('regressionSummary');if(el)el.innerHTML=__summaryHtml(__summary(__rows()));};" +
           "document.addEventListener('change',function(e){if(e.target&&e.target.classList&&e.target.classList.contains('regression-result'))window.__updateRegressionSummary();});window.__updateRegressionSummary();" +
           (showReportButton
-            ? "window.__openReport=function(){var rows=__rows();var summary=__summary(rows);var body='<div class=\\"top\\"><div><h1>리그레션 TC 결과 리포트</h1><div class=\\"muted\\">생성 시각: '+new Date().toLocaleString()+'</div></div><div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"__downloadBlobHtml(\\\\\\'regression-report.html\\\\\\',\\\\\\'<!doctype html>\\\\\\\\n\\\\\\'+document.documentElement.outerHTML)\\">HTML 다운로드</button></div></div><div class=\\"card\\"><h2>테스트 결과 요약</h2>'+__summaryHtml(summary)+'</div><div class=\\"card\\"><table><thead><tr><th>No</th><th>Title</th><th>Steps</th><th>Expected</th><th>LastResult</th><th>CurrentResult</th></tr></thead><tbody>'+rows.map(function(r){return '<tr><td>'+r.no+'</td><td>'+r.title+'</td><td>'+r.step+'</td><td>'+r.expected+'</td><td>'+r.lastResult+'</td><td>'+__label(r.result)+'</td></tr>';}).join('')+'</tbody></table></div>';__openBlobHtml(" + JSON.stringify(baseDocument("리그레션 TC 결과 리포트", "__BODY__", "")) + ".replace('__BODY__',body));};"
+            ? "window.__openReport=function(){var rows=__rows();var summary=__summary(rows);var body='<div class=\\"top\\"><div><h1>리그레션 TC 결과 리포트</h1><div class=\\"muted\\">생성 시각: '+new Date().toLocaleString()+'</div></div><div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__downloadCurrentHtml&&window.__downloadCurrentHtml(\\\\\\'regression-report.html\\\\\\')\\">HTML 다운로드</button></div></div><div class=\\"card\\"><h2>기본정보</h2><div class=\\"grid\\"><div><label>프로젝트명</label><input placeholder=\\"프로젝트명 입력\\"/></div><div><label>테스트 버전</label><input placeholder=\\"예: v1.0.0\\"/></div><div><label>테스트 기간 시작</label><input type=\\"date\\"/></div><div><label>테스트 기간 종료</label><input type=\\"date\\"/></div><div><label>테스트 담당자</label><input placeholder=\\"담당자 입력\\"/></div><div><label>테스트 환경</label><select><option>운영</option><option>스테이지</option><option>개발</option></select></div></div></div><div class=\\"card\\"><h2>테스트 결과 요약</h2>'+__summaryHtml(summary)+'</div><div class=\\"card\\"><h2>리그레션 TC 결과</h2><table><thead><tr><th>No</th><th>Title</th><th>Steps</th><th>Expected</th><th>LastResult</th><th>CurrentResult</th></tr></thead><tbody>'+rows.map(function(r){return '<tr><td>'+r.no+'</td><td>'+r.title+'</td><td>'+r.step+'</td><td>'+r.expected+'</td><td>'+r.lastResult+'</td><td>'+__label(r.result)+'</td></tr>';}).join('')+'</tbody></table></div><div class=\\"card\\"><h2>최종의견(QA의견)</h2><textarea></textarea></div>';__openBlobHtml(" + scriptLiteral(baseDocument("리그레션 TC 결과 리포트", "__BODY__", currentPageOpenScript())) + ".replace('__BODY__',body));};"
             : "");
         const body =
-          "<div class=\\"top\\"><div><h1>리그레션 TC</h1><div class=\\"muted\\">AI 생성 체크리스트 기반 " + rows.length + "개 항목</div></div>" +
-          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"__downloadBlobHtml('regression-tc.html','<!doctype html>\\\\n'+document.documentElement.outerHTML)\\">HTML 다운로드</button>" +
+          "<div class=\\"top\\"><div><h1>리그레션 TC</h1><div class=\\"muted\\">AI 중요도 기준 " + rows.length + "개 항목</div></div>" +
+          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__downloadCurrentHtml&&window.__downloadCurrentHtml('regression-tc.html')\\">HTML 다운로드</button>" +
           (showReportButton ? "<button onclick=\\"window.__openReport&&window.__openReport()\\">결과 리포트 생성</button>" : "") +
           "</div></div>" +
           "<div class=\\"card\\"><h2>테스트 결과 요약</h2><div id=\\"regressionSummary\\">" + buildSummaryChartHtml(initialSummary) + "</div></div>" +
@@ -807,7 +813,21 @@ export function checklistRowsToHtml(params: {
       }
 
       function downloadRegressionTc() {
-        const rows = collectChecklistRows();
+        const allRows = collectChecklistRows();
+        const importantWords = ["로그인", "결제", "권한", "저장", "삭제", "수정", "등록", "업로드", "다운로드", "검증", "오류", "예외", "필수", "비활성", "접근", "보안", "성능", "연동", "API"];
+        const scored = allRows
+          .map((r, index) => {
+            const text = [r.domain, r.path, r.pre, r.step, r.check, r.expected].join(" ");
+            let score = 0;
+            if (r.result === "fail" || r.result === "fixed") score += 12;
+            if (r.result === "block") score += 10;
+            for (const w of importantWords) if (text.includes(w)) score += 2;
+            if (index < 5) score += 1;
+            return { row: r, score };
+          })
+          .sort((a, b) => b.score - a.score);
+        const targetCount = Math.min(allRows.length, Math.max(5, Math.ceil(allRows.length * 0.35)));
+        const rows = scored.slice(0, targetCount).map((x) => x.row);
         openHtmlInNewTab(buildRegressionHtml(rows, true));
       }
 
