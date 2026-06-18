@@ -737,14 +737,16 @@ export function checklistRowsToHtml(params: {
         const script =
           currentPageOpenScript() +
           "var KEY='" + key + "';" +
+          "var page=1,pageSize=10;" +
           "function readReports(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}}" +
-          "function render(){var rows=readReports();var el=document.getElementById('reportRows');if(!el)return;el.innerHTML=rows.length?rows.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td>'+(r.project||'-')+'</td><td><button class=\\"linkBtn\\" onclick=\\"window.__openSavedReport(\\\\\\''+r.id+'\\\\\\')\\">'+(r.title||'결과 리포트')+'</button></td><td>'+(r.createdAt||'')+'</td></tr>';}).join(''):'<tr><td colspan=\\"4\\" class=\\"muted\\">" + emptyText + "</td></tr>';}" +
+          "function render(){var rows=readReports();var total=Math.max(1,Math.ceil(rows.length/pageSize));if(page>total)page=total;var start=(page-1)*pageSize;var chunk=rows.slice(start,start+pageSize);var el=document.getElementById('reportRows');if(!el)return;el.innerHTML=chunk.length?chunk.map(function(r,i){return '<tr><td>'+(start+i+1)+'</td><td>'+(r.project||'-')+'</td><td><button class=\\"linkBtn\\" onclick=\\"window.__openSavedReport(\\\\\\''+r.id+'\\\\\\')\\">'+(r.title||'결과 리포트')+'</button></td><td>'+(r.owner||'-')+'</td><td>'+(r.createdAt||'')+'</td></tr>';}).join(''):'<tr><td colspan=\\"5\\" class=\\"muted\\">" + emptyText + "</td></tr>';var p=document.getElementById('pager');if(p)p.innerHTML=rows.length>pageSize?'<button '+(page<=1?'disabled':'')+' onclick=\\"window.__movePage('+(page-1)+')\\">이전</button><span class=\\"muted\\">'+page+' / '+total+'</span><button '+(page>=total?'disabled':'')+' onclick=\\"window.__movePage('+(page+1)+')\\">다음</button>':'';}" +
+          "window.__movePage=function(next){page=next;render();};" +
           "window.__openSavedReport=function(id){var found=readReports().find(function(r){return r.id===id});if(found&&found.html)__openBlobHtml(found.html);};" +
           "render();";
         const body =
           "<div class=\\"top\\"><div><h1>" + title + "</h1><div class=\\"muted\\">이 브라우저에 저장된 결과 리포트</div></div>" +
           "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button></div></div>" +
-          "<div class=\\"card\\"><table><thead><tr><th>No</th><th>프로젝트명</th><th>리포트</th><th>저장 시각</th></tr></thead><tbody id=\\"reportRows\\"></tbody></table></div>";
+          "<div class=\\"card\\"><table><thead><tr><th>No</th><th>프로젝트명</th><th>리포트</th><th>담당자</th><th>저장 시각</th></tr></thead><tbody id=\\"reportRows\\"></tbody></table><div id=\\"pager\\" class=\\"toolbar noPrint\\" style=\\"justify-content:flex-end;margin-top:14px;\\"></div></div>";
         return baseDocument(title, body, script);
       }
 
@@ -757,7 +759,7 @@ export function checklistRowsToHtml(params: {
           "function __setErr(el,msg){if(!el)return;el.classList.add('error');var n=el.parentNode.querySelector('.fieldError');if(!n){n=document.createElement('div');n.className='fieldError';el.parentNode.appendChild(n);}n.textContent=msg;}" +
           "function __clearErr(el){if(!el)return;el.classList.remove('error');var n=el.parentNode.querySelector('.fieldError');if(n)n.remove();}" +
           "function __validateRequired(){var ids=['reportProject','reportVersion','reportStart','reportEnd','reportOwner','reportEnv'];var ok=true;ids.forEach(function(id){var el=document.getElementById(id);__clearErr(el);if(!el||!String(el.value||'').trim()){__setErr(el,'필수값입니다.');ok=false;}});return ok;}" +
-          "window.__saveReport=function(){if(!__validateRequired())return;var project=document.getElementById('reportProject').value;var item={id:String(Date.now()),project:project,title:project+' QA 결과 리포트',createdAt:new Date().toLocaleString(),html:__readonlySnapshotHtml()};var key='checklist_auto:qa_reports';var list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}list.unshift(item);localStorage.setItem(key,JSON.stringify(list));__openBlobHtml(REPORT_LIST_HTML);};";
+          "window.__saveReport=function(){if(!__validateRequired())return;var project=document.getElementById('reportProject').value;var owner=document.getElementById('reportOwner').value;var item={id:String(Date.now()),project:project,owner:owner,title:project+' QA 결과 리포트',createdAt:new Date().toLocaleString(),html:__readonlySnapshotHtml()};var key='checklist_auto:qa_reports';var list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}list.unshift(item);localStorage.setItem(key,JSON.stringify(list));__openBlobHtml(REPORT_LIST_HTML);};";
         const body =
           "<div class=\\"top\\"><div><h1>QA 결과 리포트</h1><div class=\\"muted\\">생성 시각: " + escapeHtml(new Date().toLocaleString()) + "</div></div>" +
           "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__downloadCurrentHtml&&window.__downloadCurrentHtml('qa-report.html')\\">HTML 다운로드</button><button onclick=\\"window.__saveReport&&window.__saveReport()\\">저장</button></div></div>" +
@@ -806,7 +808,7 @@ export function checklistRowsToHtml(params: {
             "function __setErr(el,msg){if(!el)return;el.classList.add('error');var n=el.parentNode.querySelector('.fieldError');if(!n){n=document.createElement('div');n.className='fieldError';el.parentNode.appendChild(n);}n.textContent=msg;}" +
             "function __clearErr(el){if(!el)return;el.classList.remove('error');var n=el.parentNode.querySelector('.fieldError');if(n)n.remove();}" +
             "function __validateRequired(){var ids=['reportProject','reportVersion','reportStart','reportEnd','reportOwner','reportEnv'];var ok=true;ids.forEach(function(id){var el=document.getElementById(id);__clearErr(el);if(!el||!String(el.value||'').trim()){__setErr(el,'필수값입니다.');ok=false;}});return ok;}" +
-            "window.__saveReport=function(){if(!__validateRequired())return;var project=document.getElementById('reportProject').value;var item={id:String(Date.now()),project:project,title:project+' 리그레션 결과 리포트',createdAt:new Date().toLocaleString(),html:__readonlySnapshotHtml()};var key='checklist_auto:regression_reports';var list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}list.unshift(item);localStorage.setItem(key,JSON.stringify(list));__openBlobHtml(REPORT_LIST_HTML);};"
+            "window.__saveReport=function(){if(!__validateRequired())return;var project=document.getElementById('reportProject').value;var owner=document.getElementById('reportOwner').value;var item={id:String(Date.now()),project:project,owner:owner,title:project+' 리그레션 결과 리포트',createdAt:new Date().toLocaleString(),html:__readonlySnapshotHtml()};var key='checklist_auto:regression_reports';var list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}list.unshift(item);localStorage.setItem(key,JSON.stringify(list));__openBlobHtml(REPORT_LIST_HTML);};"
         );
         const script =
           currentPageOpenScript() +
