@@ -674,8 +674,8 @@ export function checklistRowsToHtml(params: {
           ".grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;} .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}" +
           "label{display:block;font-size:12px;color:rgba(255,255,255,.74);margin:0 0 6px;} input,select,textarea{width:100%;padding:10px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(0,0,0,.25);color:rgba(255,255,255,.92);font-size:12px;outline:none;} textarea{min-height:86px;resize:vertical;} select option{color:#111827;}" +
           ".card{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.04);padding:16px;margin-top:18px;} table{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed;} th,td{border-bottom:1px solid rgba(255,255,255,.10);border-right:1px solid rgba(255,255,255,.10);padding:10px;vertical-align:top;font-size:13px;line-height:1.4;white-space:pre-wrap;word-break:break-word;} th:last-child,td:last-child{border-right:none;} th{background:rgba(15,23,42,.88);text-align:left;color:rgba(255,255,255,.78);font-size:12px;text-transform:uppercase;} ul{margin:8px 0 0 18px;padding:0;} li{margin:6px 0;}" +
-          ".summaryGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;} .summaryItem{border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:10px;background:rgba(0,0,0,.18);} .summaryItem b{font-size:16px;} .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle;}.pass{background:#22c55e}.fail{background:#f43f5e}.nt{background:#94a3b8}.na{background:#60a5fa}.block{background:#facc15}.fixed{background:#a78bfa}" +
-          "@media(max-width:800px){.wrap{padding:28px 18px;}.grid,.grid3,.summaryGrid{grid-template-columns:1fr;}}" +
+          ".summaryLayout{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:28px;align-items:center;}.summaryDonut{width:300px;max-width:100%;aspect-ratio:1;border-radius:999px;border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);} .summaryGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;} .summaryItem{border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:10px;background:rgba(0,0,0,.18);} .summaryItem b{font-size:16px;} .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle;}.pass{background:#22c55e}.fail{background:#f43f5e}.nt{background:#94a3b8}.na{background:#60a5fa}.block{background:#facc15}.fixed{background:#a78bfa}" +
+          "@media(max-width:800px){.wrap{padding:28px 18px;}.grid,.grid3,.summaryGrid,.summaryLayout{grid-template-columns:1fr;}.summaryDonut{width:240px;margin:0 auto;}}" +
           "@media print{.noPrint{display:none;} body{background:white;color:black;} .wrap{padding:0;} .card{background:white;border-color:#e5e7eb;break-inside:avoid;} input,select,textarea{border-color:#d1d5db;color:#111827;background:white;} th{background:#f3f4f6;color:#111827;} td,th{border-color:#e5e7eb;} .muted,label{color:#374151;}}" +
           "</style></head><body><div class=\\"wrap\\">" + body + "</div>" + script + "</body></html>"
         );
@@ -698,6 +698,26 @@ export function checklistRowsToHtml(params: {
           .join("") + "</div>";
       }
 
+      function buildSummaryChartHtml(summary) {
+        const colors = {
+          pass: "rgba(34,197,94,.90)",
+          fail: "rgba(244,63,94,.90)",
+          nt: "rgba(148,163,184,.90)",
+          na: "rgba(96,165,250,.90)",
+          block: "rgba(250,204,21,.95)",
+          fixed: "rgba(167,139,250,.95)",
+        };
+        let angle = 0;
+        const stops = [];
+        for (const s of summary) {
+          const next = angle + (s.pct / 100) * 360;
+          if (s.count > 0) stops.push(colors[s.key] + " " + angle + "deg " + next + "deg");
+          angle = next;
+        }
+        const background = stops.length ? "conic-gradient(" + stops.join(",") + ")" : "rgba(148,163,184,.42)";
+        return "<div class=\\"summaryLayout\\"><div class=\\"summaryDonut\\" style=\\"background:" + background + "\\"></div>" + buildSummaryHtml(summary) + "</div>";
+      }
+
       function currentPageOpenScript() {
         return (
           "function __openBlobHtml(html){var b=new Blob([html],{type:'text/html;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},60000);}" +
@@ -706,8 +726,7 @@ export function checklistRowsToHtml(params: {
       }
 
       function buildQaReportHtml(rows, summary) {
-        const detailsRows = buildRowsHtml(rows);
-        const summaryHtml = buildSummaryHtml(summary);
+        const summaryHtml = buildSummaryChartHtml(summary);
         const regressionRows = rows.filter((r) => r.result === "fail" || r.result === "fixed");
         const regressionHtml = buildRegressionHtml(regressionRows, false);
         const script =
@@ -733,9 +752,7 @@ export function checklistRowsToHtml(params: {
           "<div class=\\"card\\"><h2>리스크</h2><div class=\\"grid3\\">" +
           "<div><label>미검증항목</label><textarea></textarea></div><div><label>테스트 제한 사항</label><textarea></textarea></div><div><label>예상리스크</label><textarea></textarea></div>" +
           "</div></div>" +
-          "<div class=\\"card\\"><h2>최종의견(QA의견)</h2><textarea></textarea></div>" +
-          "<div class=\\"card\\"><h2>상세 결과</h2><table><thead><tr><th>No</th><th>도메인/제목</th><th>경로/단계</th><th>결과</th><th>체크 항목</th><th>기대 결과</th></tr></thead><tbody>" +
-          detailsRows + "</tbody></table></div>";
+          "<div class=\\"card\\"><h2>최종의견(QA의견)</h2><textarea></textarea></div>";
         return baseDocument("QA 결과 리포트", body, script);
       }
 
@@ -758,7 +775,7 @@ export function checklistRowsToHtml(params: {
           "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__openCurrentHtml&&window.__openCurrentHtml()\\">HTML 다운로드</button>" +
           (showReportButton ? "<button onclick=\\"window.__openReport&&window.__openReport()\\">결과 리포트 생성</button>" : "") +
           "</div></div>" +
-          "<div class=\\"card\\"><h2>테스트 결과 요약</h2>" + buildSummaryHtml(summary) + "</div>" +
+          "<div class=\\"card\\"><h2>테스트 결과 요약</h2>" + buildSummaryChartHtml(summary) + "</div>" +
           "<div class=\\"card\\"><table><thead><tr><th>No</th><th>Title</th><th>Steps</th><th>Expected</th><th>LastResult</th></tr></thead><tbody>" +
           (rows.length
             ? rows.map((r) => "<tr><td>" + escapeHtml(r.no) + "</td><td>" + escapeHtml(r.title) + "</td><td>" + escapeHtml(r.step) + "</td><td>" + escapeHtml(r.expected) + "</td><td>" + escapeHtml(resultLabel(r.result)) + "</td></tr>").join("")
