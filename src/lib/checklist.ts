@@ -721,22 +721,38 @@ export function checklistRowsToHtml(params: {
       function currentPageOpenScript() {
         return (
           "function __openBlobHtml(html){var b=new Blob([html],{type:'text/html;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},60000);}" +
+          "function __downloadBlobHtml(filename,html){var b=new Blob([html],{type:'text/html;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},0);}" +
           "window.__openCurrentHtml=function(){var c=document.documentElement.cloneNode(true);var si=document.querySelectorAll('input,textarea,select');var ci=c.querySelectorAll('input,textarea,select');for(var i=0;i<ci.length;i++){var s=si[i];var d=ci[i];if(!s||!d)continue;if(d.tagName==='TEXTAREA'){d.textContent=s.value||'';}else if(d.tagName==='SELECT'){Array.prototype.forEach.call(d.options,function(o){if(o.value===s.value)o.setAttribute('selected','selected');else o.removeAttribute('selected');});}else{d.setAttribute('value',s.value||'');}}__openBlobHtml('<!doctype html>\\\\n'+c.outerHTML);};"
         );
       }
 
-      function buildQaReportHtml(rows, summary) {
-        const summaryHtml = buildSummaryChartHtml(summary);
-        const regressionRows = rows.filter((r) => r.result === "fail" || r.result === "fixed");
-        const regressionHtml = buildRegressionHtml(regressionRows, false);
+      function buildReportListHtml() {
         const script =
           currentPageOpenScript() +
-          "window.__openRegression=function(){__openBlobHtml(" + JSON.stringify(regressionHtml) + ");};";
+          "var KEY='checklist_auto:qa_reports';" +
+          "function readReports(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}}" +
+          "function render(){var rows=readReports();var el=document.getElementById('reportRows');if(!el)return;el.innerHTML=rows.length?rows.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td><button class=\\"linkBtn\\" onclick=\\"window.__openSavedReport(\\\\\\''+r.id+'\\\\\\')\\">'+(r.title||'QA 결과 리포트')+'</button></td><td>'+(r.createdAt||'')+'</td></tr>';}).join(''):'<tr><td colspan=\\"3\\" class=\\"muted\\">저장된 리포트가 없습니다.</td></tr>';}" +
+          "window.__openSavedReport=function(id){var found=readReports().find(function(r){return r.id===id});if(found&&found.html)__openBlobHtml(found.html);};" +
+          "render();";
+        const body =
+          "<div class=\\"top\\"><div><h1>결과 리포트 리스트</h1><div class=\\"muted\\">이 브라우저에 저장된 QA 결과 리포트</div></div>" +
+          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button></div></div>" +
+          "<div class=\\"card\\"><table><thead><tr><th>No</th><th>리포트</th><th>저장 시각</th></tr></thead><tbody id=\\"reportRows\\"></tbody></table></div>";
+        return baseDocument("결과 리포트 리스트", body, script);
+      }
+
+      function buildQaReportHtml(rows, summary) {
+        const summaryHtml = buildSummaryChartHtml(summary);
+        const listHtml = buildReportListHtml();
+        const script =
+          currentPageOpenScript() +
+          "var REPORT_LIST_HTML=" + JSON.stringify(listHtml) + ";" +
+          "window.__saveReport=function(){var c=document.documentElement.cloneNode(true);var si=document.querySelectorAll('input,textarea,select');var ci=c.querySelectorAll('input,textarea,select');for(var i=0;i<ci.length;i++){var s=si[i];var d=ci[i];if(!s||!d)continue;if(d.tagName==='TEXTAREA'){d.textContent=s.value||'';}else if(d.tagName==='SELECT'){Array.prototype.forEach.call(d.options,function(o){if(o.value===s.value)o.setAttribute('selected','selected');else o.removeAttribute('selected');});}else{d.setAttribute('value',s.value||'');}}var project=document.getElementById('reportProject')&&document.getElementById('reportProject').value;var item={id:String(Date.now()),title:project||document.title,createdAt:new Date().toLocaleString(),html:'<!doctype html>\\\\n'+c.outerHTML};var key='checklist_auto:qa_reports';var list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}list.unshift(item);localStorage.setItem(key,JSON.stringify(list));document.open();document.write(REPORT_LIST_HTML);document.close();};";
         const body =
           "<div class=\\"top\\"><div><h1>QA 결과 리포트</h1><div class=\\"muted\\">생성 시각: " + escapeHtml(new Date().toLocaleString()) + "</div></div>" +
-          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__openCurrentHtml&&window.__openCurrentHtml()\\">HTML 다운로드</button><button onclick=\\"window.__openRegression&&window.__openRegression()\\">리그레션 TC 생성</button></div></div>" +
+          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"__downloadBlobHtml('qa-report.html','<!doctype html>\\\\n'+document.documentElement.outerHTML)\\">HTML 다운로드</button><button onclick=\\"window.__saveReport&&window.__saveReport()\\">저장</button></div></div>" +
           "<div class=\\"card\\"><h2>기본정보</h2><div class=\\"grid\\">" +
-          "<div><label>프로젝트명</label><input placeholder=\\"프로젝트명 입력\\"/></div>" +
+          "<div><label>프로젝트명</label><input id=\\"reportProject\\" placeholder=\\"프로젝트명 입력\\"/></div>" +
           "<div><label>테스트 버전</label><input placeholder=\\"예: v1.0.0\\"/></div>" +
           "<div><label>테스트 기간 시작</label><input type=\\"date\\"/></div>" +
           "<div><label>테스트 기간 종료</label><input type=\\"date\\"/></div>" +
@@ -763,29 +779,35 @@ export function checklistRowsToHtml(params: {
 
       function buildRegressionHtml(rows, includeReportButton) {
         const showReportButton = includeReportButton !== false;
-        const summary = getSummarySnapshot(rows);
-        const reportHtml = showReportButton ? buildQaReportHtml(rows, summary) : "";
+        const initialRows = rows.map((r) => ({ ...r, result: "nt" }));
+        const initialSummary = getSummarySnapshot(initialRows);
         const script =
           currentPageOpenScript() +
+          "function __label(v){return({pass:'PASS',fail:'FAIL',nt:'N/T',na:'N/A',block:'BLOCK',fixed:'FIXED'}[v]||String(v||'nt').toUpperCase());}" +
+          "function __summary(rows){var c={pass:0,fail:0,nt:0,na:0,block:0,fixed:0};rows.forEach(function(r){c[c[r.result]===undefined?'nt':r.result]++;});var total=rows.length;function pct(n){return total?Math.round(n/total*100):0;}return[{key:'pass',label:'PASS',pct:pct(c.pass),count:c.pass},{key:'fail',label:'FAIL',pct:pct(c.fail),count:c.fail},{key:'nt',label:'N/T',pct:pct(c.nt),count:c.nt},{key:'na',label:'N/A',pct:pct(c.na),count:c.na},{key:'block',label:'BLOCK',pct:pct(c.block),count:c.block},{key:'fixed',label:'FIXED',pct:pct(c.fixed),count:c.fixed}];}" +
+          "function __summaryHtml(summary){var colors={pass:'rgba(34,197,94,.90)',fail:'rgba(244,63,94,.90)',nt:'rgba(148,163,184,.90)',na:'rgba(96,165,250,.90)',block:'rgba(250,204,21,.95)',fixed:'rgba(167,139,250,.95)'};var angle=0;var stops=[];summary.forEach(function(s){var next=angle+(s.pct/100)*360;if(s.count>0)stops.push(colors[s.key]+' '+angle+'deg '+next+'deg');angle=next;});var bg=stops.length?'conic-gradient('+stops.join(',')+')':'rgba(148,163,184,.42)';return '<div class=\\"summaryLayout\\"><div class=\\"summaryDonut\\" style=\\"background:'+bg+'\\"></div><div class=\\"summaryGrid\\">'+summary.map(function(s){return '<div class=\\"summaryItem\\"><span class=\\"swatch '+s.key+'\\"></span>'+s.label+' <b>'+s.pct+'%</b> <span class=\\"muted\\">('+s.count+')</span></div>';}).join('')+'</div></div>';}" +
+          "function __rows(){return Array.prototype.map.call(document.querySelectorAll('tbody tr[data-regression-row]'),function(tr){return{no:tr.children[0].textContent.trim(),title:tr.children[1].textContent.trim(),step:tr.children[2].textContent.trim(),expected:tr.children[3].textContent.trim(),lastResult:tr.children[4].textContent.trim(),result:(tr.querySelector('select.regression-result')||{}).value||'nt'};});}" +
+          "window.__updateRegressionSummary=function(){var el=document.getElementById('regressionSummary');if(el)el.innerHTML=__summaryHtml(__summary(__rows()));};" +
+          "document.addEventListener('change',function(e){if(e.target&&e.target.classList&&e.target.classList.contains('regression-result'))window.__updateRegressionSummary();});window.__updateRegressionSummary();" +
           (showReportButton
-            ? "window.__openReport=function(){__openBlobHtml(" + JSON.stringify(reportHtml) + ");};"
+            ? "window.__openReport=function(){var rows=__rows();var summary=__summary(rows);var body='<div class=\\"top\\"><div><h1>리그레션 TC 결과 리포트</h1><div class=\\"muted\\">생성 시각: '+new Date().toLocaleString()+'</div></div><div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"__downloadBlobHtml(\\\\\\'regression-report.html\\\\\\',\\\\\\'<!doctype html>\\\\\\\\n\\\\\\'+document.documentElement.outerHTML)\\">HTML 다운로드</button></div></div><div class=\\"card\\"><h2>테스트 결과 요약</h2>'+__summaryHtml(summary)+'</div><div class=\\"card\\"><table><thead><tr><th>No</th><th>Title</th><th>Steps</th><th>Expected</th><th>LastResult</th><th>CurrentResult</th></tr></thead><tbody>'+rows.map(function(r){return '<tr><td>'+r.no+'</td><td>'+r.title+'</td><td>'+r.step+'</td><td>'+r.expected+'</td><td>'+r.lastResult+'</td><td>'+__label(r.result)+'</td></tr>';}).join('')+'</tbody></table></div>';__openBlobHtml(" + JSON.stringify(baseDocument("리그레션 TC 결과 리포트", "__BODY__", "")) + ".replace('__BODY__',body));};"
             : "");
         const body =
-          "<div class=\\"top\\"><div><h1>리그레션 TC</h1><div class=\\"muted\\">FAIL, FIXED 기준 " + rows.length + "개 항목</div></div>" +
-          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__openCurrentHtml&&window.__openCurrentHtml()\\">HTML 다운로드</button>" +
+          "<div class=\\"top\\"><div><h1>리그레션 TC</h1><div class=\\"muted\\">AI 생성 체크리스트 기반 " + rows.length + "개 항목</div></div>" +
+          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"__downloadBlobHtml('regression-tc.html','<!doctype html>\\\\n'+document.documentElement.outerHTML)\\">HTML 다운로드</button>" +
           (showReportButton ? "<button onclick=\\"window.__openReport&&window.__openReport()\\">결과 리포트 생성</button>" : "") +
           "</div></div>" +
-          "<div class=\\"card\\"><h2>테스트 결과 요약</h2>" + buildSummaryChartHtml(summary) + "</div>" +
-          "<div class=\\"card\\"><table><thead><tr><th>No</th><th>Title</th><th>Steps</th><th>Expected</th><th>LastResult</th></tr></thead><tbody>" +
+          "<div class=\\"card\\"><h2>테스트 결과 요약</h2><div id=\\"regressionSummary\\">" + buildSummaryChartHtml(initialSummary) + "</div></div>" +
+          "<div class=\\"card\\"><table><thead><tr><th>No</th><th>Title</th><th>Steps</th><th>Expected</th><th>LastResult</th><th>현재 결과</th></tr></thead><tbody>" +
           (rows.length
-            ? rows.map((r) => "<tr><td>" + escapeHtml(r.no) + "</td><td>" + escapeHtml(r.title) + "</td><td>" + escapeHtml(r.step) + "</td><td>" + escapeHtml(r.expected) + "</td><td>" + escapeHtml(resultLabel(r.result)) + "</td></tr>").join("")
-            : "<tr><td colspan=\\"5\\" class=\\"muted\\">FAIL 또는 FIXED 항목이 없습니다.</td></tr>") +
+            ? rows.map((r) => "<tr data-regression-row=\\"1\\"><td>" + escapeHtml(r.no) + "</td><td>" + escapeHtml(r.title) + "</td><td>" + escapeHtml(r.step) + "</td><td>" + escapeHtml(r.expected) + "</td><td>" + escapeHtml(resultLabel(r.result)) + "</td><td><select class=\\"regression-result\\"><option value=\\"nt\\">N/T</option><option value=\\"pass\\">PASS</option><option value=\\"fail\\">FAIL</option><option value=\\"na\\">N/A</option><option value=\\"block\\">BLOCK</option><option value=\\"fixed\\">FIXED</option></select></td></tr>").join("")
+            : "<tr><td colspan=\\"6\\" class=\\"muted\\">생성할 리그레션 TC가 없습니다.</td></tr>") +
           "</tbody></table></div>";
         return baseDocument("리그레션 TC", body, script);
       }
 
       function downloadRegressionTc() {
-        const rows = collectChecklistRows().filter((r) => r.result === "fail" || r.result === "fixed");
+        const rows = collectChecklistRows();
         openHtmlInNewTab(buildRegressionHtml(rows, true));
       }
 
@@ -806,7 +828,7 @@ export function checklistRowsToHtml(params: {
       }
 
       function downloadHtml() {
-        openHtmlInNewTab(getCurrentHtmlSnapshot());
+        downloadTextFile("checklist.html", getCurrentHtmlSnapshot(), "text/html;charset=utf-8");
       }
 
       // onclick attribute에서 안정적으로 접근하도록 window에 바인딩
