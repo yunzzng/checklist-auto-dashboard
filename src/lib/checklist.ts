@@ -667,14 +667,17 @@ export function checklistRowsToHtml(params: {
           "<meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1\\"/>" +
           "<title>" + escapeHtml(title) + "</title>" +
           "<style>" +
-          "body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;margin:24px;color:#111827;}" +
-          "h1{margin:0 0 8px 0;font-size:22px;} h2{margin:24px 0 10px;font-size:16px;} .muted{color:#6b7280;font-size:12px;}" +
-          ".toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px;} button{padding:9px 12px;border-radius:8px;border:1px solid #d1d5db;background:#111827;color:white;cursor:pointer;font-size:12px;} button.secondary{background:white;color:#111827;}" +
+          "*{box-sizing:border-box;} body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;margin:0;background:linear-gradient(to bottom,#000,#020617,#000);color:rgba(255,255,255,.92);}" +
+          ".wrap{margin:0;padding:50px 100px;} .top{display:flex;gap:12px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px;}" +
+          "h1{margin:0;font-size:20px;} h2{margin:0 0 12px;font-size:15px;} .muted{color:rgba(255,255,255,.62);font-size:12px;}" +
+          ".toolbar{display:flex;gap:10px;flex-wrap:wrap;} button{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92);cursor:pointer;font-size:12px;} button.primary{background:#6d28d9;border-color:rgba(255,255,255,.14);} button:hover{border-color:rgba(255,255,255,.28);}" +
           ".grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;} .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}" +
-          "label{display:block;font-size:12px;color:#374151;margin:0 0 6px;} input,select,textarea{width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:12px;} textarea{min-height:76px;resize:vertical;}" +
-          ".card{border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-top:12px;} table{width:100%;border-collapse:collapse;margin-top:10px;} th,td{border:1px solid #e5e7eb;padding:8px;vertical-align:top;font-size:12px;} th{background:#f9fafb;text-align:left;} ul{margin:8px 0 0 18px;padding:0;}" +
-          "@media print{.noPrint{display:none;} body{margin:0;} .card{break-inside:avoid;}}" +
-          "</style></head><body>" + body + script + "</body></html>"
+          "label{display:block;font-size:12px;color:rgba(255,255,255,.74);margin:0 0 6px;} input,select,textarea{width:100%;padding:10px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(0,0,0,.25);color:rgba(255,255,255,.92);font-size:12px;outline:none;} textarea{min-height:86px;resize:vertical;} select option{color:#111827;}" +
+          ".card{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.04);padding:16px;margin-top:18px;} table{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed;} th,td{border-bottom:1px solid rgba(255,255,255,.10);border-right:1px solid rgba(255,255,255,.10);padding:10px;vertical-align:top;font-size:13px;line-height:1.4;white-space:pre-wrap;word-break:break-word;} th:last-child,td:last-child{border-right:none;} th{background:rgba(15,23,42,.88);text-align:left;color:rgba(255,255,255,.78);font-size:12px;text-transform:uppercase;} ul{margin:8px 0 0 18px;padding:0;} li{margin:6px 0;}" +
+          ".summaryGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;} .summaryItem{border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:10px;background:rgba(0,0,0,.18);} .summaryItem b{font-size:16px;} .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle;}.pass{background:#22c55e}.fail{background:#f43f5e}.nt{background:#94a3b8}.na{background:#60a5fa}.block{background:#facc15}.fixed{background:#a78bfa}" +
+          "@media(max-width:800px){.wrap{padding:28px 18px;}.grid,.grid3,.summaryGrid{grid-template-columns:1fr;}}" +
+          "@media print{.noPrint{display:none;} body{background:white;color:black;} .wrap{padding:0;} .card{background:white;border-color:#e5e7eb;break-inside:avoid;} input,select,textarea{border-color:#d1d5db;color:#111827;background:white;} th{background:#f3f4f6;color:#111827;} td,th{border-color:#e5e7eb;} .muted,label{color:#374151;}}" +
+          "</style></head><body><div class=\\"wrap\\">" + body + "</div>" + script + "</body></html>"
         );
       }
 
@@ -690,17 +693,29 @@ export function checklistRowsToHtml(params: {
       }
 
       function buildSummaryHtml(summary) {
-        return "<ul>" + summary
-          .map((s) => "<li><b>" + escapeHtml(s.label) + "</b>: " + s.pct + "% (" + s.count + ")</li>")
-          .join("") + "</ul>";
+        return "<div class=\\"summaryGrid\\">" + summary
+          .map((s) => "<div class=\\"summaryItem\\"><span class=\\"swatch " + escapeHtml(s.key) + "\\"></span>" + escapeHtml(s.label) + " <b>" + s.pct + "%</b> <span class=\\"muted\\">(" + s.count + ")</span></div>")
+          .join("") + "</div>";
+      }
+
+      function currentPageOpenScript() {
+        return (
+          "function __openBlobHtml(html){var b=new Blob([html],{type:'text/html;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},60000);}" +
+          "window.__openCurrentHtml=function(){var c=document.documentElement.cloneNode(true);var si=document.querySelectorAll('input,textarea,select');var ci=c.querySelectorAll('input,textarea,select');for(var i=0;i<ci.length;i++){var s=si[i];var d=ci[i];if(!s||!d)continue;if(d.tagName==='TEXTAREA'){d.textContent=s.value||'';}else if(d.tagName==='SELECT'){Array.prototype.forEach.call(d.options,function(o){if(o.value===s.value)o.setAttribute('selected','selected');else o.removeAttribute('selected');});}else{d.setAttribute('value',s.value||'');}}__openBlobHtml('<!doctype html>\\\\n'+c.outerHTML);};"
+        );
       }
 
       function buildQaReportHtml(rows, summary) {
         const detailsRows = buildRowsHtml(rows);
         const summaryHtml = buildSummaryHtml(summary);
+        const regressionRows = rows.filter((r) => r.result === "fail" || r.result === "fixed");
+        const regressionHtml = buildRegressionHtml(regressionRows, false);
+        const script =
+          currentPageOpenScript() +
+          "window.__openRegression=function(){__openBlobHtml(" + JSON.stringify(regressionHtml) + ");};";
         const body =
-          "<div class=\\"toolbar noPrint\\"><button onclick=\\"window.print()\\">인쇄/PDF 저장</button></div>" +
-          "<h1>QA 결과 리포트</h1><div class=\\"muted\\">생성 시각: " + escapeHtml(new Date().toLocaleString()) + "</div>" +
+          "<div class=\\"top\\"><div><h1>QA 결과 리포트</h1><div class=\\"muted\\">생성 시각: " + escapeHtml(new Date().toLocaleString()) + "</div></div>" +
+          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__openCurrentHtml&&window.__openCurrentHtml()\\">HTML 다운로드</button><button onclick=\\"window.__openRegression&&window.__openRegression()\\">리그레션 TC 생성</button></div></div>" +
           "<div class=\\"card\\"><h2>기본정보</h2><div class=\\"grid\\">" +
           "<div><label>프로젝트명</label><input placeholder=\\"프로젝트명 입력\\"/></div>" +
           "<div><label>테스트 버전</label><input placeholder=\\"예: v1.0.0\\"/></div>" +
@@ -721,7 +736,7 @@ export function checklistRowsToHtml(params: {
           "<div class=\\"card\\"><h2>최종의견(QA의견)</h2><textarea></textarea></div>" +
           "<div class=\\"card\\"><h2>상세 결과</h2><table><thead><tr><th>No</th><th>도메인/제목</th><th>경로/단계</th><th>결과</th><th>체크 항목</th><th>기대 결과</th></tr></thead><tbody>" +
           detailsRows + "</tbody></table></div>";
-        return baseDocument("QA 결과 리포트", body, "");
+        return baseDocument("QA 결과 리포트", body, script);
       }
 
       function openQaReport() {
@@ -729,15 +744,20 @@ export function checklistRowsToHtml(params: {
         openHtmlInNewTab(buildQaReportHtml(rows, getSummarySnapshot(rows)));
       }
 
-      function buildRegressionHtml(rows) {
+      function buildRegressionHtml(rows, includeReportButton) {
+        const showReportButton = includeReportButton !== false;
         const summary = getSummarySnapshot(rows);
-        const reportHtml = buildQaReportHtml(rows, summary);
+        const reportHtml = showReportButton ? buildQaReportHtml(rows, summary) : "";
         const script =
-          "window.__downloadHtml=function(){var b=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='regression-tc.html';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},0);};" +
-          "window.__openReport=function(){var b=new Blob([" + JSON.stringify(reportHtml) + "],{type:'text/html;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},60000);};";
+          currentPageOpenScript() +
+          (showReportButton
+            ? "window.__openReport=function(){__openBlobHtml(" + JSON.stringify(reportHtml) + ");};"
+            : "");
         const body =
-          "<div class=\\"toolbar noPrint\\"><button onclick=\\"window.print()\\">인쇄/PDF 저장</button><button class=\\"secondary\\" onclick=\\"window.__downloadHtml&&window.__downloadHtml()\\">HTML 다운로드</button><button onclick=\\"window.__openReport&&window.__openReport()\\">결과 리포트 생성</button></div>" +
-          "<h1>리그레션 TC</h1><div class=\\"muted\\">FAIL, FIXED 기준 " + rows.length + "개 항목</div>" +
+          "<div class=\\"top\\"><div><h1>리그레션 TC</h1><div class=\\"muted\\">FAIL, FIXED 기준 " + rows.length + "개 항목</div></div>" +
+          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button><button onclick=\\"window.__openCurrentHtml&&window.__openCurrentHtml()\\">HTML 다운로드</button>" +
+          (showReportButton ? "<button onclick=\\"window.__openReport&&window.__openReport()\\">결과 리포트 생성</button>" : "") +
+          "</div></div>" +
           "<div class=\\"card\\"><h2>테스트 결과 요약</h2>" + buildSummaryHtml(summary) + "</div>" +
           "<div class=\\"card\\"><table><thead><tr><th>No</th><th>Title</th><th>Steps</th><th>Expected</th><th>LastResult</th></tr></thead><tbody>" +
           (rows.length
@@ -749,7 +769,7 @@ export function checklistRowsToHtml(params: {
 
       function downloadRegressionTc() {
         const rows = collectChecklistRows().filter((r) => r.result === "fail" || r.result === "fixed");
-        openHtmlInNewTab(buildRegressionHtml(rows));
+        openHtmlInNewTab(buildRegressionHtml(rows, true));
       }
 
       function getCurrentHtmlSnapshot() {
@@ -769,7 +789,7 @@ export function checklistRowsToHtml(params: {
       }
 
       function downloadHtml() {
-        downloadTextFile("checklist.html", getCurrentHtmlSnapshot(), "text/html;charset=utf-8");
+        openHtmlInNewTab(getCurrentHtmlSnapshot());
       }
 
       // onclick attribute에서 안정적으로 접근하도록 window에 바인딩
