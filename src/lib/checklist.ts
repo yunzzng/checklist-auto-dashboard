@@ -745,7 +745,7 @@ export function checklistRowsToHtml(params: {
           "render();";
         const body =
           "<div class=\\"top\\"><div><h1>" + title + "</h1><div class=\\"muted\\">이 브라우저에 저장된 결과 리포트</div></div>" +
-          "<div class=\\"toolbar noPrint\\"><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button></div></div>" +
+          "<div class=\\"toolbar noPrint\\"><button onclick=\\"location.href='/'\\">홈</button><button class=\\"primary\\" onclick=\\"window.print()\\">인쇄/PDF 저장</button></div></div>" +
           "<div class=\\"card\\"><table><thead><tr><th>No</th><th>프로젝트명</th><th>리포트</th><th>담당자</th><th>저장 시각</th></tr></thead><tbody id=\\"reportRows\\"></tbody></table><div id=\\"pager\\" class=\\"toolbar noPrint\\" style=\\"justify-content:flex-end;margin-top:14px;\\"></div></div>";
         return baseDocument(title, body, script);
       }
