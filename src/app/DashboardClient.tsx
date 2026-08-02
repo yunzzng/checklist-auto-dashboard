@@ -198,7 +198,7 @@ function goHome(){var u="/";try{u=localStorage.getItem("checklist_auto:homeUrl")
 function prepareReportHtml(html){var next=String(html||"");next=next.replace(/<button\\b[^>]*>\\s*홈\\s*<\\/button>/i,'<button type="button" onclick="goHome()">홈</button>');if(next.indexOf("function goHome()")<0){next=next.replace("</body>",'<script>function goHome(){var u="/";try{u=localStorage.getItem("checklist_auto:homeUrl")||u}catch(e){}if(u==="/"&&location.protocol.indexOf("http")===0)u=location.origin+"/";location.href=u}<\\/script></body>')}return next}
 var KEY=${JSON.stringify(key)};
 var page=1,pageSize=10;
-function openBlobHtml(html){var b=new Blob([html],{type:'text/html;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},60000)}
+function openBlobHtml(html){var b=new Blob([html],{type:'text/html;charset=utf-8'});var u=URL.createObjectURL(b);location.href=u}
 function readReports(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}}
 window.openSavedReport=function(id){var found=readReports().find(function(r){return r.id===id});if(found&&found.html)openBlobHtml(prepareReportHtml(found.html))}
 window.movePage=function(next){page=next;render()}
@@ -207,14 +207,7 @@ render();
 <\/script></body></html>`;
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    window.location.href = url;
   }
 
   return (
