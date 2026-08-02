@@ -47,6 +47,7 @@ export default function DashboardClient() {
 
   useEffect(() => {
     try {
+      localStorage.setItem("checklist_auto:homeUrl", window.location.origin + "/");
       const ft = localStorage.getItem("checklist_auto:figmaToken") ?? "";
       const ok = localStorage.getItem("checklist_auto:openaiApiKey") ?? "";
       const om = localStorage.getItem("checklist_auto:openaiModel") ?? "gpt-4.1-mini";
@@ -97,6 +98,7 @@ export default function DashboardClient() {
       typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
     const storageKey = `checklist_auto:popup:${rid}`;
     try {
+      localStorage.setItem("checklist_auto:homeUrl", window.location.origin + "/");
       localStorage.setItem(storageKey, JSON.stringify({ status: "pending" }));
     } catch {
       // ignore
@@ -191,12 +193,14 @@ export default function DashboardClient() {
     const empty = kind === "qa" ? "저장된 QA 결과 리포트가 없습니다." : "저장된 리그레션 결과 리포트가 없습니다.";
     const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${title}</title><style>
 *{box-sizing:border-box}body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;margin:0;background:linear-gradient(to bottom,#000,#020617,#000);color:rgba(255,255,255,.92)}.wrap{padding:50px 100px}.top{display:flex;gap:12px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px}h1{margin:0;font-size:20px}.muted{color:rgba(255,255,255,.62);font-size:12px}.card{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.04);padding:16px;margin-top:18px}button{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92);cursor:pointer;font-size:12px}button.primary{background:#6d28d9}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border-bottom:1px solid rgba(255,255,255,.10);border-right:1px solid rgba(255,255,255,.10);padding:10px;vertical-align:top;font-size:13px;word-break:break-word}th{background:rgba(15,23,42,.88);text-align:left;color:rgba(255,255,255,.78);font-size:12px;text-transform:uppercase}@media(max-width:800px){.wrap{padding:28px 18px}}@media print{.noPrint{display:none}body{background:white;color:black}.wrap{padding:0}.card{background:white;border-color:#e5e7eb}th{background:#f3f4f6;color:#111827}td,th{border-color:#e5e7eb}.muted{color:#374151}}
-</style></head><body><div class="wrap"><div class="top"><div><h1>${title}</h1><div class="muted">이 브라우저에 저장된 결과 리포트</div></div><div class="noPrint" style="display:flex;gap:8px;flex-wrap:wrap;"><button onclick="location.href='/'">홈</button><button class="primary" onclick="window.print()">인쇄/PDF 저장</button></div></div><div class="card"><table><thead><tr><th>No</th><th>프로젝트명</th><th>리포트</th><th>담당자</th><th>저장 시각</th></tr></thead><tbody id="reportRows"></tbody></table><div id="pager" class="noPrint" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:14px;"></div></div></div><script>
+</style></head><body><div class="wrap"><div class="top"><div><h1>${title}</h1><div class="muted">이 브라우저에 저장된 결과 리포트</div></div><div class="noPrint" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" onclick="goHome()">홈</button><button type="button" class="primary" onclick="window.print()">인쇄/PDF 저장</button></div></div><div class="card"><table><thead><tr><th>No</th><th>프로젝트명</th><th>리포트</th><th>담당자</th><th>저장 시각</th></tr></thead><tbody id="reportRows"></tbody></table><div id="pager" class="noPrint" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:14px;"></div></div></div><script>
+function goHome(){var u="/";try{u=localStorage.getItem("checklist_auto:homeUrl")||u}catch(e){}if(u==="/"&&location.protocol.indexOf("http")===0)u=location.origin+"/";location.href=u}
+function prepareReportHtml(html){var next=String(html||"");next=next.replace(/<button\\b[^>]*>\\s*홈\\s*<\\/button>/i,'<button type="button" onclick="goHome()">홈</button>');if(next.indexOf("function goHome()")<0){next=next.replace("</body>",'<script>function goHome(){var u="/";try{u=localStorage.getItem("checklist_auto:homeUrl")||u}catch(e){}if(u==="/"&&location.protocol.indexOf("http")===0)u=location.origin+"/";location.href=u}<\\/script></body>')}return next}
 var KEY=${JSON.stringify(key)};
 var page=1,pageSize=10;
 function openBlobHtml(html){var b=new Blob([html],{type:'text/html;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},60000)}
 function readReports(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}}
-window.openSavedReport=function(id){var found=readReports().find(function(r){return r.id===id});if(found&&found.html)openBlobHtml(found.html)}
+window.openSavedReport=function(id){var found=readReports().find(function(r){return r.id===id});if(found&&found.html)openBlobHtml(prepareReportHtml(found.html))}
 window.movePage=function(next){page=next;render()}
 function render(){var rows=readReports();var total=Math.max(1,Math.ceil(rows.length/pageSize));if(page>total)page=total;var start=(page-1)*pageSize;var chunk=rows.slice(start,start+pageSize);var el=document.getElementById('reportRows');el.innerHTML=chunk.length?chunk.map(function(r,i){return '<tr><td>'+(start+i+1)+'</td><td>'+(r.project||'-')+'</td><td><button onclick="openSavedReport(\\''+r.id+'\\')">'+(r.title||'결과 리포트')+'</button></td><td>'+(r.owner||'-')+'</td><td>'+(r.createdAt||'')+'</td></tr>'}).join(''):'<tr><td colspan="5" class="muted">${empty}</td></tr>';var p=document.getElementById('pager');p.innerHTML=rows.length>pageSize?'<button '+(page<=1?'disabled':'')+' onclick="movePage('+(page-1)+')">이전</button><span class="muted">'+page+' / '+total+'</span><button '+(page>=total?'disabled':'')+' onclick="movePage('+(page+1)+')">다음</button>':''}
 render();
